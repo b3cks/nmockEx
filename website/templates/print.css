@@ -1,0 +1,99 @@
+a:link, a:visited
+{
+	text-decoration: none;
+	color: blue;
+}
+
+a:hover, a:active
+{
+	text-decoration: underline;
+	color: blue;
+}
+
+a.selected
+{
+	font-weight: bolder;
+}
+
+body
+{
+	font-family: verdana, arial, sans-serif;
+	padding-right: 20px;
+}
+	
+#logo 
+{
+	text-align: right;
+	margin-left: 20px;
+}
+
+#navigation
+{
+	display: none;
+}	
+
+#main
+{
+	font-size: small;
+	margin-left: 2em;
+	margin-right: 2em;
+}
+
+#footer
+{
+	text-align: right;
+	font-size: small;
+	color: Gray;
+	font-style: italic;
+	margin-top: 2em;
+}
+
+#licensetext
+{
+	margin-left: 1em;
+	margin-right: 2em;
+	color: gray;
+}
+
+#olddocswarning
+{
+	display: none;
+}
+
+pre
+{
+	background-color: #FFFFCC;
+	border-style: solid;
+	border-width: thin;
+	border-color: Gray;
+	padding: 4px 4px 4px 8px;
+	font-size: larger;
+}
+
+pre.left
+{
+	margin-right: 1em;
+}
+
+table.cheatsheet
+{
+	text-align: left;
+	vertical-align: top;
+	border: none;
+}
+
+.cheatsheet
+{
+	font-size: small;
+}
+
+.contributors
+{
+	margin-left: 2em;
+}
+
+#sponsorlogos
+{
+	margin-left: 2em;
+	margin-top: 2em;
+}

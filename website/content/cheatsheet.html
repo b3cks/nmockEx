@@ -1,0 +1,161 @@
+<?xml version="1.0"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN"
+      "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html>
+<body>
+
+<div id="olddocswarning">
+	<p> <strong>NMock 2.0 is now the recommended version of NMock</strong>. If you're using an older version, please see the <a href="nmock1-documentation.html">documentation for NMock 1.x</a>. </p>
+</div>
+
+<table class="cheatsheet">
+	<tr>
+		<th colspan="2">
+			Setting Up
+		</th>
+	</tr>
+	<tr>
+		<td colspan="2">
+			<p> Create a new Mockery and use it to create mocks for all the interfaces you're interested in. </p>
+
+<pre>
+Mockery mocks = new Mockery();
+InterfaceToBeMocked aMock = (InterfaceToBeMocked) mocks.NewMock(typeof(InterfaceToBeMocked));
+</pre>
+
+			<p> If you're using .NET 2.0, there's a generic NewMock() method so you don't need the cast: </p>
+
+<pre>
+InterfaceToBeMocked aMock = mocks.NewMock&lt;InterfaceToBeMocked&gt;();
+</pre>
+		</td>
+	</tr>
+
+
+	<tr>
+		<th colspan="2">
+			Defining Basic Expectations
+		</th>
+	</tr>
+	<tr>
+		<td>
+<pre class="left">
+Expect.Once.On(aMock)
+	.Method( ... )
+	.With( ... )
+	.Will(Return.Value( ... ));
+</pre>
+		</td>
+		<td>
+<pre>
+Expect.Once.On(aMock)
+	.Method( ... )
+	.With( ... )
+	.Will(Throw.Exception( ... ));
+</pre>
+		</td>
+	</tr>
+	<tr>
+		<th colspan="2">
+			Defining Expectations on Properties
+		</th>
+	</tr>
+	<tr>
+		<td>
+<pre class="left">
+Expect.Once.On(aMock)
+	.GetProperty( ... )
+	.Will(Return.Value( ... );
+</pre>
+		</td>
+		<td>
+<pre>
+Expect.Once.On(aMock)
+	.SetProperty( ... )
+	.To( ... );
+</pre>
+		</td>
+	</tr>
+	<tr>
+		<th>
+			Stubs
+		</th>
+		<th>
+			Constraining Order
+		</th>
+	</tr>
+	<tr>
+		<td>
+			<p style="margin-right: 1em"> Expect can be replaced with Stub which essentially means &#0147;zero or more&#0148;. Behavior of the stub will be defined and invoked if called, but the stub will not cause the test to fail. </p>
+
+<pre class="left">
+Stub.On(aMock)
+	.Method( ... )
+	.With( ... )
+	.Will(Return.Value( ... );
+</pre>
+
+		</td>
+		<td>
+			<p> Mocks by default can be in any order. To constrain the order of a set of expectations, wrap the expectations with a using block. </p>
+
+<pre>
+using (mocks.Ordered)
+{
+	Expect.Once.On( ...
+	Expect.Once.On( ...
+}
+</pre>
+		</td>
+	</tr>
+
+	<tr>
+		<th colspan="2">
+			Possible Method Call Expectations
+		</th>
+	</tr>
+	<tr>
+		<td colspan="2">
+
+<pre>
+Expect.Once                            Expect.Never               Expect.AtLeastOnce
+Expect.AtLeast(&lt;# times&gt;)              Expect.AtMost(&lt;# times&gt;)   Expect.Exactly(&lt;# times&gt;)
+Expect.Between(&lt;# times&gt;, &lt;# times&gt;)
+</pre>
+		</td>
+	</tr>
+
+	<tr>
+		<th colspan="2">
+			Arguments
+		</th>
+	</tr>
+	<tr>
+		<td colspan="2">
+			<p> .With( ... ) can be replaced with .WithAnyArguments() or .WithNoArguments() </p>
+		</td>
+	</tr>
+
+	<tr>
+		<th colspan="2">
+			Verification
+		</th>
+	</tr>
+	<tr>
+		<td colspan="2">
+<pre>
+Mockery mocks = new Mockery();
+...
+mocks.VerifyAllExpectationsHaveBeenMet();
+</pre>
+		</td>
+	</tr>
+
+</table>
+
+<div id="footer">
+$Id: cheatsheet.html,v 1.2 2006/03/06 17:40:25 mgm Exp $
+</div>
+
+</body>
+</html>

@@ -1,0 +1,9 @@
+E:\Dropbox\Summer research 2014\nmock2\build\NMock2\Debug\NMock2.dll
+E:\Dropbox\Summer research 2014\nmock2\build\NMock2\Debug\NMock2.pdb
+E:\Dropbox\Summer research 2014\nmock2\src\NMock2\obj\Debug\NMock2.dll
+E:\Dropbox\Summer research 2014\nmock2\src\NMock2\obj\Debug\NMock2.pdb
+D:\Dropbox\Summer research 2014\nmock2\src\NMock2\obj\Debug\NMock2.pdb
+D:\Dropbox\Summer research 2014\nmock2\build\NMock2\Debug\NMock2.dll
+D:\Dropbox\Summer research 2014\nmock2\build\NMock2\Debug\NMock2.pdb
+D:\Dropbox\Summer research 2014\nmock2\src\NMock2\obj\Debug\NMock2.dll
+E:\Dropbox\Summer research 2014\nmock2\src\NMock2\obj\Debug\NMock2.csprojResolveAssemblyReference.cache

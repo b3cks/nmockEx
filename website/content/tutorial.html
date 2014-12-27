@@ -1,0 +1,168 @@
+<?xml version="1.0"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN"
+      "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html>
+<body>
+
+<div id="olddocswarning">
+	<p> <strong>NMock 2.0 is now the recommended version of NMock</strong>. If you're using an older version, please see the <a href="nmock1-documentation.html">documentation for NMock 1.x</a>. </p>
+</div>
+
+<p> This tutorial builds on example code shown in the <a href="quickstart.html">Quickstart</a>. You should be familiar with the currency conversion example presented there before reading this more in-depth tutorial. </p>
+
+<p> So far we have an account service that can transfer money between bank accounts, converting the currency using rates obtained from a currency service. We'll build on this codebase to demonstrate further features of the NMock framework. </p>
+
+<h3> Defining Expectations on Properties </h3>
+
+<p> We've seen how to tell a mock object to expect methods with certain arguments, and we can also define expectations on properties through getters and setters. Suppose we're writing a web front-end to our account transfer service using the <a href="http://www.martinfowler.com/eaaDev/ModelViewPresenter.html">model-view-presenter</a> pattern. The view will be an ASP.NET page, the model corresponds to domain objects like <em>Account</em>, and the presenter is the logic that glues everything together. </p>
+
+<p> The page we're trying to build allows the user to enter a &#0147;from&#0148; account number, a &#0147;to&#0148; account number, and an amount to transfer. The view looks like this: </p>
+
+<pre>
+public interface ITransferFundsView
+{
+    string FromAccount { get; }
+    string ToAccount { get; }
+    double Amount { get; }
+}
+</pre>
+
+<p> The properties <em>FromAccount</em>, <em>ToAccount</em> and <em>Amount</em> probably correspond to ASP.NET text fields, but that's not really too important&#8212;the view is an interface and shields the presenter from needing to know whether the UI is actually an ASP.NET page or a smart-client WinForms app. The job of the presenter is to handle user input from the view and coordinate business functionality to perform requested actions, then update the view with any results. Since we're transferring money between accounts, the presenter will need both the view and an account service: </p>
+
+<pre>
+public class TransferFundsPresenter
+{
+    private readonly ITransferFundsView view;
+    private readonly IAccountService accountService;
+
+    public TransferFundsPresenter(ITransferFundsView view, IAccountService accountService)
+    {
+        this.view = view;
+        this.accountService = accountService;
+    }
+}
+</pre>
+
+<p> Now we've figured out how the presenter will look, we can write a test. Our <em>SetUp()</em> method will create a mock view and account service, and pass the mocks into a real presenter which we will use for the test. </p>
+
+<pre>
+[TestFixture]
+public class TransferFundsPresenterTest
+{
+    private Mockery mocks;
+    private ITransferFundsView mockView;
+    private IAccountService mockAccountService;
+    private TransferFundsPresenter presenter;
+
+    [SetUp]
+    public void SetUp()
+    {
+        mocks = new Mockery();
+        mockView = mocks.NewMock&lt;ITransferFundsView&gt;();
+        mockAccountService = mocks.NewMock&lt;IAccountService&gt;();
+        presenter = new TransferFundsPresenter(mockView, mockAccountService);
+    }
+</pre>
+
+<p> As an initial scenario let's consider what happens when the user clicks the &#0147;transfer funds&#0148; button. The presenter should query the view for the two account numbers and the amount to transfer, and then use the account service to actually do the work: </p>
+
+<pre>
+    [Test]
+    public void ShouldQueryViewAndUseAccountServiceToTransferFunds()
+    {
+        Expect.Once.On(mockView).GetProperty("FromAccount").Will(Return.Value("1234"));
+        Expect.Once.On(mockView).GetProperty("ToAccount").Will(Return.Value("9876"));
+        Expect.Once.On(mockView).GetProperty("Amount").Will(Return.Value(200.00));
+
+        Expect.Once.On(mockAccountService).Method("TransferFunds").With("1234", "9876", 200.00);
+
+        presenter.TransferClicked();
+        mocks.VerifyAllExpectationsHaveBeenMet();
+    }
+</pre>
+
+<p> Here we're defining expectations on the mock view's properties, namely <em>FromAccount</em>, <em>ToAccount</em> and <em>Amount</em>. We then tell the mock account service to expect the <em>TransferFunds()</em> method to be called with arguments matching those retrieved from the view. Finally we call the presenter's <em>TransferClicked()</em> method to simulate the view delegating to the presenter when the user pushes the button. </p>
+
+<p> To get the test to pass, we need to write the following implementation: </p>
+
+<pre>
+    public void TransferClicked()
+    {
+        string fromAccount = view.FromAccount;
+        string toAccount = view.ToAccount;
+        double amount = view.Amount;
+        accountService.TransferFunds(fromAccount, toAccount, amount);
+    }
+</pre>
+
+<p> The implementation retrieves the properties from the view and uses them to call the <em>TransferFunds()</em> method on the account service. The test passes, everything's good. </p>
+
+<h3> Dealing with Exceptions </h3>
+
+<p> Our transfer page is working well so far, but what about some rainy-day scenarios? Let's suppose the user enters an invalid account number. The only piece of the system that would know a number is invalid is the account service (it's the only thing accessing real data right now, the presenter and view certainly wouldn't know a particular number was invalid). One implementation might be for the account service to throw <em>InvalidAccountException</em> if a bad account number is supplied. The presenter should probably catch this exception and display some kind of error message to the user. </p>
+
+<pre>
+    [Test]
+    public void IfAccountServiceThrowsInvalidAccountExceptionShouldDisplayMessageToUser()
+    {
+        Stub.On(mockView).GetProperty("FromAccount").Will(Return.Value("1234"));
+        Stub.On(mockView).GetProperty("ToAccount").Will(Return.Value("BAD NUMBER"));
+        Stub.On(mockView).GetProperty("Amount").Will(Return.Value(200.00));
+
+        Expect.Once.On(mockAccountService).
+            Method("TransferFunds").
+            With("1234", "BAD NUMBER", 200.00).
+            Will(Throw.Exception(new InvalidAccountException()));
+
+        Expect.Once.On(mockView).SetProperty("DisplayInvalidAccountMessage").To(true);
+
+        presenter.TransferClicked();
+        mocks.VerifyAllExpectationsHaveBeenMet();
+    }
+</pre>
+
+<p> Our test is doing a couple of things differently this time. Firstly, instead of using expectations for the properties on the view, we use a <em>stub</em>. A stub works just like an expectation but means &#0147;zero or more times.&#0148; In this case it means that if the mock view's <em>FromAccount</em>, <em>ToAccount</em> and <em>Amount</em> properties are accessed they will return &#0147;1234&#0148;, &#0147;BAD NUMBER&#0148; and 200.00, but if the properties aren't accessed we don't care and the test will still pass. Secondly, when we're setting up an expectation on the account service mock's <em>TransferFunds()</em> method, instead of specifying a return value we tell the mock to throw a new <em>InvalidAccountException</em>. When a piece of implementation code calls the mocked method, NMock will throw the exception for us. </p>
+
+<p> Finally we expect that the <em>DisplayInvalidAccountMessage</em> property on the view will be set to true by the presenter, presumably displaying some kind of error message or dialog box to the user, informing them they have used an invalid account number. The view now looks like this: </p>
+
+<pre>
+public interface ITransferFundsView
+{
+    string FromAccount { get; }
+    string ToAccount { get; }
+    double Amount { get; }
+    bool DisplayInvalidAccountMessage { set; }
+}
+</pre>
+
+<p> If we run this test without changing the presenter's <em>TransferClicked()</em> method, the <em>InvalidAccountException</em> is thrown by the mock account service, not caught by our implementation, and shown as an error by NUnit. The fix is simple&#8212;wrap the call to <em>TransferFunds()</em> with a try-catch block, and set the property on the view if appropriate: </p>
+
+<pre>
+    public void TransferClicked()
+    {
+        string fromAccount = view.FromAccount;
+        string toAccount = view.ToAccount;
+        double amount = view.Amount;
+        try
+        {
+            accountService.TransferFunds(fromAccount, toAccount, amount);
+        }
+        catch(InvalidAccountException)
+        {
+            view.DisplayInvalidAccountMessage = true;
+        }
+    }
+</pre>
+
+<p> The new test passes, and we didn't break the old one. Excellent news. </p>
+
+<p> NMock's <em>Throw.Exception</em> syntax can be used to test how your application handles exceptions in lots of different ways. Here we've seen how to show an error message based on the exception, but we could also write a test that said &#0147;the account service should catch a <em>RecordNotFoundException</em> and re-throw it as <em>InvalidAccountException</em>.&#0148; </p>
+
+<p> Now that you've followed the tutorial, you might be interested in our <a href="cheatsheet.html">Cheat Sheet</a>, a printable one-page guide to NMock syntax. You might also like to read about <a href="advanced.html">advanced concepts</a>, including defining custom matchers and actions. </p>
+
+<div id="footer">
+$Id: tutorial.html,v 1.4 2006/03/06 21:12:08 mgm Exp $
+</div>
+
+</body>
+</html>

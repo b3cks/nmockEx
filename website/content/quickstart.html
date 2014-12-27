@@ -1,0 +1,131 @@
+<?xml version="1.0"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN"
+      "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html>
+<body>
+
+<p> In this example we'll implement part of a banking system. We need to be able to transfer money between two accounts owned by the same customer, but which have different currencies. During the transfer, we'll need to obtain the current exchange rate and use it to convert the funds. Please note that this is a deliberately simplified example&#8212;in a real-world application you might not choose to use <em>double</em> to store something important like money, or to use simple strings for currencies. </p>
+
+<p> Let's start with the service we wish to test, <em>IAccountService</em>. We start with a single method: </p>
+
+<pre>
+public interface IAccountService
+{
+    void TransferFunds(Account from, Account to, double amount);
+}
+</pre>
+
+<p> For this simplified example, two <em>Account</em> objects are passed to the service and we'll assume they have already been populated with the current account balances, currencies, etc. A more realistic example might just pass account numbers to the service, which would then need to do some data access to load the accounts. Let's write a skeletal implementation of the service: </p>
+
+<pre>
+public class AccountService : IAccountService
+{
+    public void TransferFunds(Account from, Account to, double amount)
+    {
+        from.Withdraw(amount);
+        to.Deposit(amount);
+    }
+}
+</pre>
+
+<p> The obvious problem here is that we're ignoring the currencies&#8212;if we do transfers between accounts that have different currency codes, the bank will leak money! We know we need to do currency conversion, so let's make our service depend on a new currency service: </p>
+
+<pre>
+public interface ICurrencyService
+{
+	double GetConversionRate(string fromCurrency, string toCurrency);
+}
+</pre>
+
+<pre>
+public class AccountService : IAccountService
+{
+    private readonly ICurrencyService currencyService;
+
+    public AccountService(ICurrencyService currencyService)
+    {
+        this.currencyService = currencyService;
+    }
+
+    ...
+}
+</pre>
+
+<p> Here we're using constructor <a href="http://www.martinfowler.com/articles/injection.html">dependency injection</a> to provide the currency service to the account service. Instead of going off into the environment and somehow finding that currency service, we provide it directly in the constructor. This makes the account service easier to test because we can replace the real currency service with a mock object. </p>
+
+<p> Now we can create an <a href="http://www.nunit.org/">NUnit</a> test for our currency conversion service. In our <em>SetUp</em> method we'll create a <em>Mockery</em>, the basic factory for mock objects. Next we'll create a mock currency service and pass it to our account service (the class we're actually trying to test). </p>
+
+<pre>
+using NUnit.Framework;
+using NMock2;
+
+[TestFixture]
+public class CurrencyServiceTest
+{
+    private Mockery mocks;
+    private ICurrencyService mockCurrencyService;
+    private IAccountService accountService;
+
+    [SetUp]
+    public void SetUp()
+    {
+        mocks = new Mockery();
+        mockCurrencyService = mocks.NewMock&lt;ICurrencyService&gt;();
+        accountService = new AccountService(mockCurrencyService);
+    }
+}
+</pre>
+
+<p> We know that our account service should use the <em>GetConversionRate()</em> method to find the conversion rate between two bank accounts, and that it should adjust the amount being moved between the accounts accordingly. The test might look like this: </p>
+
+<pre>
+    [Test]
+    public void ShouldUseCurrencyServiceToDetermineConversionRateBetweenAccounts()
+    {
+        Account canadianAccount = new Account("12345", "CAD");
+        Account britishAccount = new Account("54321", "GBP");
+        britishAccount.Deposit(100);
+
+        Expect.Once.On(mockCurrencyService).
+            Method("GetConversionRate").
+            With("GBP", "CAD").
+            Will(Return.Value(2.20));
+
+        accountService.TransferFunds(britishAccount, canadianAccount, 100);
+
+        Assert.AreEqual(0, britishAccount.Balance);
+        Assert.AreEqual(220, canadianAccount.Balance);
+        mocks.VerifyAllExpectationsHaveBeenMet();
+    }
+</pre>
+
+<p> We created two accounts containing British and Canadian funds, and started by depositing 100 pounds in the British account. Then we told the mock currency service to expect the method <em>GetConversionRate()</em> with arguments &#0147;GBP&#0148; and &#0147;CAD&#0148;, and that the mock object should return 2.20. Right in the middle of the test we call the <em>TransferFunds()</em> method on the account service to transfer 100 pounds from the British account into the Canadian account. Next, we assert that the British account ends up empty and the Canadian account ends up with 220 dollars. Finally, we use the <em>VerifyAllExpectationsHaveBeenMet()</em> to ensure that all of the expected methods were called on our mock currency service. </p>
+
+<p> Sadly, this test fails. Our first (money-leaking) implementation of the transfer method didn't know anything about currencies. Let's fix that and get our test to pass by using the currency service to determine the conversion rate: </p>
+
+<pre>
+public void TransferFunds(Account from, Account to, double amount)
+{
+    from.Withdraw(amount);
+    double conversionRate = currencyService.GetConversionRate(from.Currency, to.Currency);
+    double convertedAmount = amount * conversionRate;
+    to.Deposit(convertedAmount);
+}
+</pre>
+
+<p> Our test passes and we can go home for the night, confident that our account transfer service correctly performs currency conversion. But what have we really achieved by using the mock currency service? </p>
+
+<ul>
+	<li>our test only exercises the account service code, so if the test breaks, we know something in the account service is wrong.</li>
+	<li>our test is reliable, because the mock currency service always returns an exchange rate of 2.20. If we'd used a real currency service&#8212;based on a database, a real-time web service feed, etc.&#8212;we wouldn't know what exchange rate it was going to return, so couldn't assert that the Canadian bank account should end up with $220.</li>
+	<li>our test is actually driving out some of the behaviour of the rest of the system, by defining the interface to some of the other components. In this case we've defined how the <em>GetConversionRate()</em> method should look and can test the account service's use of it, without ever needing to actually implement the currency service. This style of testing is popular with <a href="http://c2.com/cgi/wiki?TestDrivenDevelopment">test driven development</a>. </li>
+</ul>
+
+<p> NMock contains many more ways of specifying expected behaviour, defining return values and exceptions that might be thrown, and asserting that the classes we're testing behave correctly. To learn more please see the <a href="tutorial.html">Tutorial</a> or the handy <a href="cheatsheet.html">cheat-sheet</a>. </p>
+
+<div id="footer">
+$Id: quickstart.html,v 1.3 2006/03/06 21:12:08 mgm Exp $
+</div>
+
+</body>
+</html>

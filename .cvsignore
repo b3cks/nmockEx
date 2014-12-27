@@ -1,0 +1,8 @@
+_ReSharper.NMock2
+build
+NMock2.resharperoptions
+NMock2.suo
+dist
+TestResult.xml
+NMock2.sln.VisualState.xml
+NMock2.VisualState.xml

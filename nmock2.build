@@ -1,0 +1,255 @@
+<project xmlns="http://nant.sf.net/release/0.85/nant.xsd" name="NMock2" default="test-net2.0">
+
+	<!-- Build Properties -->
+	<property name="configuration" value="Debug" />
+	<property name="build.dir" value="build/" />
+	<property name="dist.dir" value="dist/" />
+	<property name="src.dir" value="src/" />
+	<property name="lib.dir" value="lib/"/>
+
+	<!-- NUnit Properties -->
+	<property name="nunit-console.exe" value="tools/nunit/nunit-console.exe" />
+	<property name="nunit.framework.dll" value="nunit.framework.dll" />
+
+	<!-- Paths & Filenames for NMock2 -->
+	<property name="nmock2.dll" value="NMock2.dll"/>
+	<property name="nmock2.dll.fullpath" value="${build.dir}/${configuration}/${nmock2.dll}"/>
+	<property name="unittest.dll" value="NMock2.Test.dll"/>
+	<property name="unittest.dll.fullpath" value="${build.dir}/${configuration}/${unittest.dll}"/>
+	<property name="acceptancetest.dll" value="NMock2.AcceptanceTests.dll"/>
+	<property name="acceptancetest.dll.fullpath" value="${build.dir}/${configuration}/${acceptancetest.dll}"/>
+
+	<!-- ThoughtWorks CruiseControl.NET Properties-->
+	<property name="publish.dir" value="e:\download-area\NMock2-Builds\" if="${property::exists('CCNetLabel')}"/>
+	<property name="CCNetLabel" value="0" unless="${property::exists('CCNetLabel')}" />
+
+	<!-- Version Properties -->
+	<property name="MajorVersion" value="2"/>
+	<property name="MinorVersion" value="0"/>
+	<property name="MicroVersion" value="0"/>
+	<property name="BuildNumber" value="${CCNetLabel}"/>
+
+	<!-- Assembly Info -->
+	<property name="product.name" value="NMock2"/>
+	<property name="product.owner" value="NMock Development Team"/>
+	<property name="assembly.version" value="${MajorVersion}.${MinorVersion}.${MicroVersion}.${BuildNumber}"/>
+
+
+	<!-- CruiseControl.NET Targets -->
+	<target name="cruise" description="Target to run from CruiseControl.NET Hosted at ccnetlive.thoughtworks.com">
+		<call target="dist-source"/>
+		<call target="dist-net1.1"/>
+		<call target="clean"/>
+		<call target="dist-net2.0"/>
+		<call target="dist.publish"/>
+	</target>
+
+	<target name="dist.publish">
+		<if test="${property::exists('publish.dir')}">
+			<mkdir dir="${publish.dir}/${MajorVersion}.${MinorVersion}.${MicroVersion}/${BuildNumber}" />
+			<copy todir="${publish.dir}/${MajorVersion}.${MinorVersion}.${MicroVersion}/${BuildNumber}">
+				<fileset basedir="${dist.dir}">
+					<include name="*"/>
+				</fileset>
+			</copy>
+			<delete>
+				<fileset basedir="${dist.dir}">
+					<include name="*"/>
+				</fileset>
+			</delete>
+		</if>
+	</target>
+
+	<!-- Project Targets (Suitable for developers) -->
+	<target name="dist-source">
+		<mkdir dir="${dist.dir}" />
+		<zip zipfile="${dist.dir}/nmock2-${assembly.version}-src.zip" ziplevel="9">
+			<fileset prefix="nmock2">
+				<exclude name="${dist.dir}" />
+				<exclude name="${build.dir}" />
+				<include name="**/*" />
+			</fileset>
+		</zip>
+	</target>
+
+	<target name="dist-net2.0" depends="test-net2.0">
+		<call target="dist"/>
+	</target>
+
+	<target name="dist-net1.1" depends="test-net1.1">
+		<call target="dist"/>
+	</target>
+
+	<target name="test-net2.0" depends="build-net2.0">
+		<copy file="${lib.dir}/nunit/${nant.settings.currentframework}/${nunit.framework.dll}" todir="${build.dir}/${configuration}"/>
+		<call target="test.unit"/>
+		<call target="test.acceptance"/>
+	</target>
+
+	<target name="test-net1.1" depends="build-net1.1">
+		<copy file="${lib.dir}/nunit/${nant.settings.currentframework}/${nunit.framework.dll}" todir="${build.dir}/${configuration}"/>
+		<call target="test.unit"/>
+		<call target="test.acceptance"/>
+	</target>
+
+	<target name="build-net2.0" depends="clean, set-net-2.0-framework-configuration">
+		<property name="csc.defines" value="NET20" />
+		<echo message="Set property csc.defines=${csc.defines}"/>
+		<call target="build"/>
+	</target>
+
+	<target name="build-net1.1" depends="clean, set-net-1.1-framework-configuration">
+		<property name="csc.defines" value="NET11" />
+		<echo message="Set property csc.defines=${csc.defines}"/>
+		<call target="build"/>
+	</target>
+
+	<target name="clean" description="Clean up everything, including generated AssemblyInfo.cs">
+		<delete dir="${build.dir}" if="${directory::exists(build.dir)}"/>
+		<delete if="${directory::exists(dist.dir)}">
+			<fileset>
+				<include name="${dist.dir}/*.dll"/>
+				<include name="${dist.dir}/*.pdb"/>
+			</fileset>
+		</delete>
+		<delete>
+			<fileset>
+				<include name="**/obj/**" />
+			</fileset>
+		</delete>
+		<delete file="${src.dir}/NMock2/AssemblyInfo.cs"/>
+	</target>
+
+	<!-- Supporting targets (not suitable for developer use) -->
+	<target name="generate.assemblyinfo.cs" description="Uses the product information, and current build number to generate the
+		  AssemblyInfo.cs file that will be compiled into NMock2.dll, NMock2.Test.dll and NMock2.AcceptanceTests.dll">
+		<asminfo output="${src.dir}/NMock2/AssemblyInfo.cs" language="CSharp">
+			<imports>
+				<import namespace="System.Reflection" />
+				<import namespace="System.Runtime.CompilerServices" />
+			</imports>
+			<attributes>
+				<!-- Assembly Information -->
+				<attribute type="AssemblyTitleAttribute" value="${product.name}" />
+				<attribute type="AssemblyProductAttribute" value="${product.name}" />
+				<!-- Product Information -->
+				<attribute type="AssemblyCompanyAttribute" value="${product.owner}" />
+				<attribute type="AssemblyCopyrightAttribute" value="Copyright &#169; ${datetime::get-year(datetime::now())}" />
+				<!-- Version Information -->
+				<attribute type="AssemblyVersionAttribute" value="${assembly.version}" />
+				<attribute type="AssemblyFileVersionAttribute" value="${assembly.version}" />
+				<attribute type="AssemblyKeyFileAttribute" value="nmock2.snk" if="${'net-1.1' == framework::get-target-framework()}"/>
+			</attributes>
+		</asminfo>
+		<asminfo output="${src.dir}/NMock2.Test/AssemblyInfo.cs" language="CSharp">
+			<imports>
+				<import namespace="System.Reflection" />
+				<import namespace="System.Runtime.CompilerServices" />
+			</imports>
+			<attributes>
+				<!-- Assembly Information -->
+				<attribute type="AssemblyTitleAttribute" value="${product.name}" />
+				<attribute type="AssemblyProductAttribute" value="${product.name}" />
+				<!-- Product Information -->
+				<attribute type="AssemblyCompanyAttribute" value="${product.owner}" />
+				<attribute type="AssemblyCopyrightAttribute" value="Copyright &#169; ${datetime::get-year(datetime::now())}" />
+				<!-- Version Information -->
+				<attribute type="AssemblyVersionAttribute" value="${assembly.version}" />
+				<attribute type="AssemblyFileVersionAttribute" value="${assembly.version}" />
+			</attributes>
+		</asminfo>
+		<asminfo output="${src.dir}/NMock2.AcceptanceTests/AssemblyInfo.cs" language="CSharp">
+			<imports>
+				<import namespace="System.Reflection" />
+				<import namespace="System.Runtime.CompilerServices" />
+			</imports>
+			<attributes>
+				<!-- Assembly Information -->
+				<attribute type="AssemblyTitleAttribute" value="${product.name}" />
+				<attribute type="AssemblyProductAttribute" value="${product.name}" />
+				<!-- Product Information -->
+				<attribute type="AssemblyCompanyAttribute" value="${product.owner}" />
+				<attribute type="AssemblyCopyrightAttribute" value="Copyright &#169; ${datetime::get-year(datetime::now())}" />
+				<!-- Version Information -->
+				<attribute type="AssemblyVersionAttribute" value="${assembly.version}" />
+				<attribute type="AssemblyFileVersionAttribute" value="${assembly.version}" />
+			</attributes>
+		</asminfo>
+	</target>
+
+	<target name="test.unit">
+		<property name="unittest.dll" value="NMock2.Test.dll"/>
+		<exec program="${nunit-console.exe}" workingdir="${build.dir}/${configuration}"
+				commandline="${unittest.dll} /xml:${unittest.dll}-results.xml /nologo" />
+	</target>
+
+	<target name="test.acceptance">
+		<exec program="${nunit-console.exe}" workingdir="${build.dir}/${configuration}"
+				commandline="${acceptancetest.dll} /xml:${acceptancetest.dll}-results.xml /nologo" />
+	</target>
+
+	<target name="dist">
+		<mkdir dir="${dist.dir}" />
+		<zip zipfile="${dist.dir}/nmock2-${assembly.version}-${nant.settings.currentframework}.zip" ziplevel="9">
+			<fileset basedir="${build.dir}/${configuration}" prefix="bin">
+				<exclude name="nunit.framework.dll"/>
+				<include name="*.dll" />
+				<include name="*.pdb" />
+			</fileset>
+			<fileset basedir="doc" prefix="doc">
+				<include name="**/*" />
+			</fileset>
+		</zip>
+	</target>
+
+	<target name="build" depends="generate.assemblyinfo.cs" description=".NET Framework Independent build steps">
+		<mkdir dir="${build.dir}/${configuration}" />
+		<!-- Build NMock2.dll-->
+		<csc target="library" warnaserror="true" output="${nmock2.dll.fullpath}" keyfile="nmock2.snk" define="${csc.defines}">
+			<references>
+				<include name="System.dll" />
+			</references>
+			<sources>
+				<include name="src/NMock2/**/*.cs" />
+			</sources>
+		</csc>
+		<!-- Build NMock2.Test.dll -->
+		<csc target="library" warnaserror="true" output="${unittest.dll.fullpath}" define="${csc.defines}">
+			<references>
+				<include name="System.dll" />
+				<include name="${lib.dir}/nunit/${nant.settings.currentframework}/${nunit.framework.dll}"/>
+				<include name="${nmock2.dll.fullpath}" />
+			</references>
+			<sources>
+				<include name="${src.dir}/NMock2.Test/**/*.cs" />
+			</sources>
+		</csc>
+		<!-- Build NMock2.AcceptanceTests.dll -->
+		<csc target="library" warnaserror="true" output="${acceptancetest.dll.fullpath}" define="${csc.defines}">
+			<references>
+				<include name="System.dll" />
+				<include name="${lib.dir}/nunit/${nant.settings.currentframework}/${nunit.framework.dll}"/>
+				<include name="${nmock2.dll.fullpath}" />
+			</references>
+			<sources>
+				<include name="${src.dir}/NMock2.AcceptanceTests/**/*.cs" />
+			</sources>
+		</csc>
+	</target>
+
+	<target name="set-net-1.1-framework-configuration">
+		<property name="nant.settings.currentframework" value="net-1.1" />
+		<property name="current.build.defines" value="${build.defines}NET,NET_1_1" dynamic="true" />
+		<property name="link.sdkdoc.version" value="SDK_v1_1" />
+		<property name="link.sdkdoc.web" value="true" />
+		<echo message="Now using the .NET Framework Version 1.1"/>
+	</target>
+
+	<target name="set-net-2.0-framework-configuration">
+		<property name="nant.settings.currentframework" value="net-2.0" />
+		<property name="current.build.defines" value="${build.defines}NET,NET_2_0" dynamic="true" />
+		<property name="link.sdkdoc.version" value="SDK_v1_1" />
+		<property name="link.sdkdoc.web" value="true" />
+		<echo message="Now using the .NET Framework Version 2.0"/>
+	</target>
+</project>

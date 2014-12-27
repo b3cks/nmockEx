@@ -1,0 +1,5 @@
+D:\Dropbox\Summer research 2014\nmock2\src\NMock2.Test\obj\Debug\NMock2.Test.csprojResolveAssemblyReference.cache
+D:\Dropbox\Summer research 2014\nmock2\build\NMock2.Test\Debug\NMock2.Test.dll
+D:\Dropbox\Summer research 2014\nmock2\build\NMock2.Test\Debug\NMock2.Test.pdb
+D:\Dropbox\Summer research 2014\nmock2\src\NMock2.Test\obj\Debug\NMock2.Test.dll
+D:\Dropbox\Summer research 2014\nmock2\src\NMock2.Test\obj\Debug\NMock2.Test.pdb

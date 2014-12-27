@@ -1,0 +1,44 @@
+<?xml version="1.0"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN"
+      "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html>
+
+<body>
+
+<p>NMock is a dynamic <a href="http://www.mockobjects.com/">mock object</a> library for .NET. Mock objects make it easier to test single components&#8212;often single classes&#8212;without relying on real implementations of all of the other components. This means we can test just one class, rather than a whole tree of objects, and can pinpoint bugs much more clearly. Mock objects are often used during <a href="http://c2.com/cgi/wiki?TestDrivenDevelopment">Test Driven Development</a>. </p>
+
+<p> <strong>NMock 2.0 Release Candidate 2</strong> is now available! The original NMock was a .NET port of the Java-based DynaMock, whereas NMock 2.0 is inspired by the newer <a href="http://www.jmock.org/">jMock</a> library. Expectations are defined using a much more &#0147;conversational&#0148; style, including plenty of syntactic sugar to improve clarity. </p>
+
+<p>A dynamic mock object:</p>
+
+    <ul>
+      <li>takes on the interface of another object, allowing it to be substituted for a real one for testing purposes.</li>
+
+      <li>allows <em>expectations</em> to be defined, specifying how the class under test is expected to interact with the mock.</li>
+
+      <li>fails the test if any of the expectations are violated.</li>
+
+      <li>can also act as a <em>stub</em>, allowing the test to specify objects to be returned from mocked methods.</li>
+    </ul>
+
+<p>Features specific to NMock:</p>
+
+    <ul>
+      <li>expectations are specified beforehand and verified on the fly as the code under test is being executed, rather than afterwards using assertions. This has the advantage that mocks <em><a href="http://www.martinfowler.com/ieeeSoftware/failFast.pdf">fail fast</a></em>, allowing you to easily pinpoint the exact point the test failed, using a stack trace or debugger.</li>
+
+      <li>mock implementations of interfaces are generated on the fly at runtime, which avoids having to add a code generation step to the build.</li>
+
+      <li>error messages clearly show the reason for the failure.</li>
+
+      <li>flexible expectations can be built up using the constraint library.</li>
+
+    </ul>
+
+<p> The best way to see how NMock works is to read the <a href="quickstart.html">Quickstart</a> (5 minutes) or the <a href="tutorial.html">Tutorial</a> (15 minutes). Developers who already have experience with mock objects will find everything they need to know on the <a href="cheatsheet.html">Cheat Sheet</a>.</p>
+
+<div id="footer">
+$Id: index.html,v 1.2 2008/01/30 23:57:55 aciddeath Exp $
+</div>
+
+</body>
+</html>

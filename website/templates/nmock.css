@@ -1,0 +1,135 @@
+a:link, a:visited
+{
+	text-decoration: none;
+	color: blue;
+}
+
+a:hover, a:active
+{
+	text-decoration: underline;
+	color: blue;
+}
+
+a.selected
+{
+	font-weight: bolder;
+}
+
+body
+{
+	font-family: verdana, arial, sans-serif;
+	padding-right: 20px;
+}
+	
+#logo 
+{
+	text-align: right;
+	margin-left: 20px;
+}
+
+#navigation
+{
+	text-align: left;
+	font-size: small;
+	margin-left: 23px;
+	float: left;
+}	
+
+#main
+{
+	font-size: small;
+	margin-left: 2em;
+	margin-right: 2em;
+	padding-left: 9em;
+}
+
+#footer
+{
+	text-align: right;
+	font-size: small;
+	color: Gray;
+	font-style: italic;
+	margin-top: 2em;
+}
+
+#licensetext
+{
+	margin-left: 1em;
+	margin-right: 2em;
+	color: gray;
+}
+
+pre
+{
+	background-color: #FFFFCC;
+	border-style: solid;
+	border-width: thin;
+	border-color: Gray;
+	padding: 4px 4px 4px 8px;
+	font-size: larger;
+}
+
+pre.left
+{
+	margin-right: 1em;
+}
+
+table.cheatsheet
+{
+	text-align: left;
+	vertical-align: top;
+	border: none;
+}
+
+.cheatsheet
+{
+	font-size: small;
+}
+
+.contributors
+{
+	margin-left: 2em;
+}
+
+#sponsorlogos
+{
+	margin-left: 2em;
+	margin-top: 2em;
+}
+
+table.downloads 
+{ 
+	margin-left: 2em;
+	margin-bottom: 0.5em;
+	border-collapse: collapse;
+	width: 25em;
+}
+
+table.downloads td, table.downloads th 
+{ 
+	border: 1px solid black; 
+	padding: 2px; 
+	text-align: left;
+	font-size: small;
+}
+
+table.downloads th 
+{ 
+	background: #eef; 
+	font-weight: bold; 
+}
+
+table.versions 
+{ 
+	margin-left: 2em;
+	margin-bottom: 0.5em;
+	border-collapse: collapse;
+}
+
+table.versions td
+{ 
+	border: 1px solid black; 
+	padding: 4px; 
+	text-align: left;
+	font-size: small;
+}

@@ -1,0 +1,297 @@
+<?xml version="1.0"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN"
+      "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html>
+<body>
+
+<div id="olddocswarning">
+	<p> <strong>NMock 2.0 is now the recommended version of NMock</strong>. If you're using an older version, please see the <a href="nmock1-documentation.html">documentation for NMock 1.x</a>. </p>
+</div>
+
+<p> This page is based on content originally written by Scott Ford for his <a href="http://vaderpi.scottandlaurie.com/blog/?p=307">blog</a>, and by Joe Poon whilst researching NMock 2.0 advanced features. Many thanks to both of them for their original material and permission to reproduce it here. </p>
+
+<h3>Matchers</h3>
+
+<p>
+NMock2 comes with a matcher library.  Like <a href="http://jmock.codehaus.org/constraints.html">constraints in jMock</a>, matchers specify expectations that can be used on mock objects and to perform assertions. You may not realize it but we have implicitly been using matchers on mock objects throughout this tutorial. Take a look at the following expectation.
+</p>
+
+<pre>
+Expect.Once.On(accountProvider).Method(&quot;Deposit&quot;).With(500);
+</pre>
+
+<p>
+Under the hood, NMock creates a <em>MethodNameMatcher</em> that expects the method named &#0147;Deposit&#0148; and a
+<em>ComparisonMatcher</em> (returned by <em>Is.Equal()</em>) to expect the input parameter 500. We could write the expectation like this instead:
+</p>
+
+<pre>
+Expect.Once.On(accountProvider).Method(new MethodNameMatcher(&quot;Deposit&quot;)).With(Is.EqualTo(500));
+</pre>
+
+<p>
+Essentially mock expectations are constructed with a series of matchers. Matchers can be built-in (provided by the NMock library) or custom (written by an end-user and shown in detail later in this tutorial).  In most cases the built-in matchers provide everything you'll need for creating expectations. Some of the more common matchers are listed below.
+</p>
+
+<h4> Matchers found in the <em>Is</em> class </h4>
+
+<ul>
+<li>Is.Anything &#8212; returns a matcher that will allow any value to be accepted</li>
+<li>Is.AtLeast &#8212; returns a matcher that will only allow values that are greater than or equal to the specified value</li>
+<li>Is.AtMost &#8212; returns a matcher that will only allow values that are less than or equal to the specified value</li>
+
+<li>Is.EqualTo &#8212; returns a matcher that will only allow values that are equal to the specified value</li>
+<li>Is.GreaterThan &#8212; returns a matcher that will only allow values that are greater than the specified value</li>
+<li>Is.LessThan &#8212; returns a matcher that will only allow values that are less than the specified value</li>
+<li>Is.Nothing &#8212; returns a matcher that will not allow any value to be accepted</li>
+<li>Is.NotNull &#8212; return a matcher that will accept any value that is not null</li>
+<li>Is.Null &#8212; returns a matcher that will only accept null values</li>
+<li>Is.Out &#8212; returns a matcher that will only accept out values</li>
+<li>Is.Same &#8212; returns a matcher that will only accept the same object that is specified</li>
+<li>Is.StringContaining &#8212; returns a matcher that will only accept things that contain the specified text</li>
+
+</ul>
+
+<h4> Matchers found in the <em>Has</em> class </h4>
+<ul>
+    <li>Has.Property &#8212; returns a matcher that will only accept objects that have a specified property name and, optionally, a value matching a specified matcher.</li>
+</ul>
+
+<p>
+In addition to using matchers to define expectations on mock objects, we can also use matchers to perform assertions in our test code. Suppose we have a test that loads a given account and verifies that its balance is within a specified range.
+</p>
+
+<pre>
+[Test]
+public void AccountShouldHaveBalanceOfLessThan500Dollars()
+{
+    Account account = accountService.LoadAccount(12345);
+    Assert.IsTrue((account.Balance &gt;= 0) &amp;&amp; (account.Balance &lt;= 500));
+}
+</pre>
+
+<p>
+The above test above is straightforward with no mock objects and just a single assertion. Everything is fine until the test fails. The failure message is limited at best:
+</p>
+
+<pre>
+NUnit.Framework.AssertionException
+</pre>
+
+<p>
+Is the balance less than 0 or greater than 500? To help us find out we can rewrite the test using the built-in NMock matchers.
+</p>
+
+<pre>
+[Test]
+public void AccountShouldHaveBalanceOfLessThan500Dollars()
+{
+    Account account = accountService.LoadAccount(12345);
+    Verify.That(account.Balance, Is.AtLeast(0) &amp; Is.AtMost(500), &quot;Account balance is not within expected range.&quot;);
+}
+</pre>
+
+<p>
+The test now reads better, but the real benefit is found in the error message if the test fails. Here's the new output when our test fails because the account balance exceeds the upper boundary.
+</p>
+
+<pre>
+NMock2.Internal.ExpectationException: Account balance is not within expected range.
+Expected: &#0147;? &gt;= &lt;0&gt;&#0148; and &#0147;? &lt;= &lt;500&gt;&#0148; Actual: &lt;501&gt;
+</pre>
+
+<h3>Custom Matchers in NMock 2.0</h3>
+
+<p> Even though there are many matchers that are provided by NMock it is likely that these matchers will not always meet your needs. For instance, you may wish to check if a value matches a value in a collection or if a value satisfies a regular expression. </p>
+
+<p> NMock makes it easy for us to write a custom matcher by extending the abstract <em>Matcher</em> class. Suppose we have a <em>UserService</em> that takes a list of users to add to a project. To prevent creating users that already exist, for each user in the supplied list, the service should ask the <em>UserProvider</em> whether or not this user already exists in the system. Once a list of verified new users is compiled, the user service should pass this list to the user provider to create the users. Let's look at the code.
+</p>
+
+<pre>
+[SetUp]
+public void SetUp()
+{
+    Mockery mocks = new Mockery();
+    IUserProvider userProvider = mocks.NewMock&lt;IUserProvider&gt;();
+    IUserService userService = new UserService(userProvider);
+}
+</pre>
+
+<pre>
+[Test]
+public void UserServiceShouldAskUserProviderWhichUsersAreNewAndRequestToAddThem()
+{
+    User newUser = new User(&quot;Charlie Brown&quot;, &quot;charlie.brown@nmock.org&quot;);
+    User existingUser = new User(&quot;John Smith&quot;, &quot;john.smith@nmock.org&quot;);
+
+    List allUsers = new List(new User[] { newUser, existingUser });
+    List newUsers = new List(new User[] { newUser });
+
+    Expect.Once.On(userProvider).Method(&quot;UserExists&quot;).With(newUser).Will(Return.Value(false));
+    Expect.Once.On(userProvider).Method(&quot;UserExists&quot;).With(existingUser).Will(Return.Value(true));
+    Expect.Once.On(userProvider).Method(&quot;CreateUsers&quot;).With(newUsers);
+
+    userService.RegisterUsers(allUsers);
+    mocks.VerifyAllExpectationsHaveBeenMet();
+}
+</pre>
+
+<p> When we run the test we get the following error message: </p>
+
+<pre>
+NMock2.Internal.ExpectationException: unexpected invocation of userProvider.CreateUsers()
+</pre>
+
+<p>
+The error message is telling us there was an unexpected invocation of <em>CreateUsers()</em>, but in the test we <em>did</em> tell the mock to expect that method call. So what's going wrong? Let's look at what the user service is doing.
+</p>
+
+<pre>
+public void RegisterUsers(List users)
+{
+    List newUsers = new List();
+    foreach(User user in users)
+    {
+        if (!provider.UserExists(user))
+            newUsers.Add(user);
+    }
+    userProvider.CreateUsers(newUsers);
+}
+</pre>
+
+<p>
+The <em>CreateUsers()</em> method queries the provider to see which users already exist and compiles a list of new users. It then passes the list of new users to the provider's <em>CreateUsers()</em> method. This seems to be the right implementation, so what's gone wrong? Why is our invocation of <em>CreateUsers()</em> &#0147;unexpected?&#0148; </p>
+
+<p> The expectation on the mock user provider fails because, by default, NMock uses <em>Equals()</em> to match the arguments passed to the mock. The list of users created in the <em>RegisterUsers()</em> method is compared to the list we created in our test and NMock finds them to be different. Although the objects in the two lists might be equal and the implementation code is doing the right thing, NMock decides the two lists are different and the test fails. To fix this we need to compare the user objects in each list, rather than the lists themselves. We'll do this by creating a custom <em>ListMatcher</em>.
+</p>
+
+<pre>
+internal class ListMatcher : Matcher
+{
+    private IList list;
+
+    public ListMatcher(IList accounts)
+    {
+        this.list = accounts;
+    }
+
+    public override bool Matches(object o)
+    {
+        if (!(o is IList)) return false;
+        IList otherList = (IList)o;
+
+        if (list.Count != otherList.Count) return false;
+        for (int i = 0; i &lt; list.Count; i++)
+        {
+            if (!list[i].Equals(otherList[i])) return false;
+        }
+        return true;
+    }
+
+    public override void DescribeTo(TextWriter writer)
+    {
+        writer.Write(&quot;List:&quot;);
+        foreach (object o in list)
+        {
+            writer.Write(o.ToString() + &quot; &quot;);
+        }
+    }
+}
+</pre>
+
+<p>The important thing to note is that the matcher derives from the abstract NMock class <em>Matcher</em>, and overrides the <em>Matches()</em> and <em>DescribeTo()</em> methods. </p>
+
+<p>The <em>Matches()</em> method is where you put the logic that determines if the value that is passed in matches what the matcher is expecting. Our new list matcher checks that both objects are lists, that they contain the same number of items, and finally that each of the objects inside the list are equal to each other (using their <em>Equals()</em> methods). In this case we'd need to make sure <em>User.Equals()</em> was also correctly implemented. </p>
+
+<p>The <em>DescribeTo()</em> method is used when NMock lists the expectations that have not been met. When writing your own matcher you should make sure that you put enough information in the <em>DescribeTo()</em> method that you can debug an unmet expectation.</p>
+
+<p>
+To use this custom matcher in our test, we must first write a "syntax" class with a static factory method that creates our matcher and looks similar to the syntax of the factory methods in the Is class:
+</p>
+
+<pre>
+public class IsList
+{
+    public static Matcher Equal(IList otherList)
+    {
+        return new ListMatcher(otherList);
+    }
+}
+</pre>
+
+<p>We can now use our new matcher syntax in our expectation:</p>
+
+<pre>
+Expect.Once.On(userProvider).Method(&quot;RegisterUsers&quot;).With(IsList.Equal(newUsers));
+</pre>
+
+<h3>Actions</h3>
+
+<p> NMock 2.0 actions are events that are triggered as the result of an expectation.  Like matchers, you have been using NMock actions
+all along probably without realizing it.  Below are two built-in NMock actions, <em>Return</em> and <em>Throw.Exception</em>. </p>
+
+<pre>
+Expect.Once.On(accountProvider).GetProperty(&quot;NumberOfActiveAccounts&quot;).Will(Return.Value(100));
+Expect.Once.On(accountProvider).Method(&quot;Withdraw&quot;).Will(Throw.Exception(new Exception(&quot;You have no money in your account.&quot;)));
+</pre>
+
+<p> To see the actions let's look at what NMock is doing under the hood. NMock creates a new <em>ReturnAction</em> and <em>ThrowAction</em> which will return the specified value and throw the desired exception, respectively. We could re-write the expectations like this, but we wouldn't want to because it makes the tests harder to read: </p>
+
+<pre>
+Expect.Once.On(accountProvider).GetProperty(&quot;NumberOfActiveAccounts&quot;).Will(new ReturnAction(100));
+Expect.Once.On(accountProvider).Method(&quot;Withdraw&quot;).Will(new ThrowAction(new Exception(&quot;You have no money in your account.&quot;)));
+</pre>
+
+<p> On most occasions the <em>Return</em> and <em>Throw</em> actions will accommodate your testing needs quite nicely. There may, however, be scenarios where you wish to implement a custom action, and NMock allows you to define custom Actions by implementing the IAction interface. </p>
+
+<p> To demonstrate a custom action, let's think about creating a new account for a user.  We'll use our <em>AccountService</em> to create a new account and then associate the account with a user.  In a real environment the newly created account will be assigned an ID via the database upon insertion (the ID probably corresponds to a primary key in a database somewhere). To simulate this we can create a custom action named <em>NewAccountAction</em> which will fire and set the ID of the account. The custom action allows us to mimic the domain more closely.  We will also create a syntax method for the new action to ensure that the test is as readable as possible.</p>
+
+<pre>
+[Test]
+public void ShouldCreateNewSavingsAccountAndAssociateItWithUser()
+{
+    Account account = new Account(AccountType.Savings);
+    User user = new User(&quot;charlie&quot;, &quot;charlie.brown@nmock.org&quot;);
+    int accountId = 999;
+
+    Expect.Once.On(accountProvider).Method(&quot;CreateAccount&quot;).With(account).Will(SetAccountId(accountId));
+    Expect.Once.On(userProvider).Method(&quot;AssociateAccountWithUser&quot;).With(accountId, user);
+
+    accountService.CreateAccount(account, user);
+    mocks.VerifyAllExpectationsHaveBeenMet();
+}
+
+private static Action SetAccountId(int id) {
+    return new SetAccountIdAction(id);
+}
+</pre>
+
+<pre>
+internal class SetAccountIdAction : IAction
+{
+    private int accountId;
+
+    public SetAccountIdAction(int accountId)
+    {
+        this.accountId = accountId;
+    }
+
+    public void Invoke(Invocation invocation)
+    {
+        Account account = (Account)invocation.Parameters[0];
+        account.Id = accountId
+    }
+
+    public void DescribeTo(TextWriter writer)
+    {
+        writer.Write(&quot;Setting new Account ID to: &quot; + accountId);
+    }
+}
+</pre>
+
+<div id="footer">
+$Id: advanced.html,v 1.6 2006/03/21 22:30:49 mgm Exp $
+</div>
+
+</body>
+</html>

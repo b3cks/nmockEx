@@ -1,0 +1,979 @@
+<?xml version="1.0"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN"
+      "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html>
+<body>
+
+<p> <strong>This documentation applies to NMock 1.x and is no longer being maintained</strong>. </p>
+
+    <p>NMock is a dynamic mock-object library for .NET. Its purpose is to provide a clean API for rapidly creating mock implementations of custom objects and verifying that objects interact with them correctly from unit tests.</p>
+
+    <p>A mock:</p>
+
+    <ul>
+      <li>takes on the interface of another object, allowing it to be substituted for a real one for testing purposes.</li>
+
+      <li>allows <b>Expectations</b> to be setup, specifying how the class under test is <i>expected</i> to interact with the mock.</li>
+
+      <li>fails the test if any of the expectations are violated.</li>
+
+      <li>can also act as a <i>stub</i>, allowing the test to specify objects to be returned from mocked methods.</li>
+    </ul>
+
+    <p>Features specific to NMock:</p>
+
+    <ul>
+      <li>expectations are specified before hand and verified on the fly as the code under test is being executed, rather than afterwards using assertions. This has the advantage that mocks fail fast, allowing you to easily pinpoint the exact point the test failed, using a stack trace or debugger.</li>
+
+      <li>mock implementations of interfaces (and classes with virtual methods) are generated on the fly at runtime. Avoids having to add a codegen step to the build.</li>
+
+      <li>error messages clearly show the reason for the failure.</li>
+
+      <li>flexible expectations can be built up using the <b>Constraint</b> library.</li>
+    </ul>
+
+    <h2>Basics</h2>
+
+    <p>A simple example which demonstrates some of the features of NMock:</p>
+<pre>
+    <span class="syntax8">class</span> ClassUnderTest <span class="syntax11">{</span> <span class="syntax1">//</span> <span class="syntax1">the</span> <span class="syntax1">class</span> <span class="syntax1">under</span> <span class="syntax1">test.</span>
+
+        <span class="syntax6">public</span> Something something<span class="syntax11">;</span> <span class="syntax1">//</span> <span class="syntax1">an</span> <span class="syntax1">external</span> <span class="syntax1">object.</span>
+
+        <span class="syntax6">public</span> <span class="syntax9">ClassUnderTest</span>( Something something ) <span class="syntax11">{</span>
+            <span class="syntax4">this</span><span class="syntax11">.</span>something <span class="syntax11">=</span> something<span class="syntax11">;</span>
+        <span class="syntax11">}</span>
+
+        <span class="syntax1">//</span> <span class="syntax1">method</span> <span class="syntax1">under</span> <span class="syntax1">test.</span>
+        <span class="syntax6">public</span> <span class="syntax8">void</span> <span class="syntax9">DoYourStuff</span>() <span class="syntax11">{</span>
+
+            <span class="syntax6">if</span> ( <span class="syntax9">someComplicatedLogic</span>() ) <span class="syntax11">{</span>
+            something<span class="syntax11">.</span><span class="syntax9">Eat</span>( <span class="syntax3">"</span><span class="syntax3">cheese</span><span class="syntax3">"</span><span class="syntax11">,</span> <span class="syntax12">22</span><span class="syntax11">,</span> <span class="syntax4">true</span> )<span class="syntax11">;</span> <span class="syntax1">//</span> <span class="syntax1">interaction</span> <span class="syntax1">with</span> <span class="syntax1">external</span> <span class="syntax1">object.</span>
+            <span class="syntax11">}</span>
+            <span class="syntax6">else</span> <span class="syntax11">{</span>
+            something<span class="syntax11">.</span><span class="syntax9">Nap</span>()<span class="syntax11">;</span> <span class="syntax1">//</span> <span class="syntax1">another</span> <span class="syntax1">interaction</span>
+            <span class="syntax11">}</span>
+        <span class="syntax11">}</span>
+    <span class="syntax11">}</span>
+
+
+    <span class="syntax1">//</span> <span class="syntax1">class</span> <span class="syntax1">that's</span> <span class="syntax1">to</span> <span class="syntax1">be</span> <span class="syntax1">mocked.</span> <span class="syntax1">Note</span> <span class="syntax1">that</span> <span class="syntax1">methods</span> <span class="syntax1">are</span> <span class="syntax1">virtual.</span>
+    <span class="syntax1">//</span> <span class="syntax1">the</span> <span class="syntax1">implementations</span> <span class="syntax1">of</span> <span class="syntax1">these</span> <span class="syntax1">methods</span> <span class="syntax1">are</span> <span class="syntax1">not</span> <span class="syntax1">called</span> <span class="syntax1">during</span> <span class="syntax1">the</span> <span class="syntax1">test</span> <span class="syntax1">as</span> <span class="syntax1">they</span> <span class="syntax1">are</span> <span class="syntax1">mocked</span> <span class="syntax1">out.</span>
+    <span class="syntax8">class</span> Something <span class="syntax11">{</span>
+
+        <span class="syntax6">public</span> <span class="syntax6">virtual</span> <span class="syntax8">void</span> <span class="syntax9">Eat</span>( <span class="syntax8">string</span> food<span class="syntax11">,</span> <span class="syntax8">int</span> numChews<span class="syntax11">,</span> <span class="syntax8">bool</span> eatWithMouthClosed ) <span class="syntax11">{</span>
+        <span class="syntax11">.</span><span class="syntax11">.</span><span class="syntax11">.</span>
+        <span class="syntax11">}</span>
+
+        <span class="syntax6">public</span> <span class="syntax6">virtual</span> <span class="syntax8">void</span> <span class="syntax9">Nap</span>() <span class="syntax11">{</span>
+        <span class="syntax11">.</span><span class="syntax11">.</span><span class="syntax11">.</span>
+        <span class="syntax11">}</span>
+    <span class="syntax11">}</span>
+
+
+    <span class="syntax11">[</span> Test <span class="syntax11">]</span>
+    <span class="syntax6">public</span> <span class="syntax8">void</span> <span class="syntax9">SomethingTest</span>() <span class="syntax11">{</span>
+
+        <span class="syntax1">//</span> <span class="syntax1">SETUP</span>
+        Mock mock <span class="syntax11">=</span> <span class="syntax6">new</span> <span class="syntax9">DynamicMock</span>(<span class="syntax6">typeof</span>(Something))<span class="syntax11">;</span> <span class="syntax1">//</span> <span class="syntax1">create</span> <span class="syntax1">a</span> <span class="syntax1">mock</span>
+        ClassUnderTest classUnderTest <span class="syntax11">=</span> <span class="syntax6">new</span> <span class="syntax9">ClassUnderTest</span>((Something)mock<span class="syntax11">.</span>MockInstance)<span class="syntax11">;</span>
+        <span class="syntax1">//</span> <span class="syntax1">pass</span> <span class="syntax1">mock</span> <span class="syntax1">into</span> <span class="syntax1">ClassUnderTest.</span>
+        <span class="syntax1">//</span> <span class="syntax1">note</span> <span class="syntax1">that</span> <span class="syntax1">you</span> <span class="syntax1">get</span> <span class="syntax1">the</span> <span class="syntax1">mocked</span> <span class="syntax1">instance</span> <span class="syntax1">by</span> <span class="syntax1">calling</span> <span class="syntax1">Mock.MockInstance</span> <span class="syntax1">and</span> <span class="syntax1">casting.</span>
+
+        <span class="syntax1">//</span> <span class="syntax1">EXPECTATIONS</span> <span class="syntax1">:</span> <span class="syntax1">how</span> <span class="syntax1">we</span> <span class="syntax1">expect</span> <span class="syntax1">the</span> <span class="syntax1">ClassUnderTest</span> <span class="syntax1">to</span> <span class="syntax1">deal</span> <span class="syntax1">with</span> <span class="syntax1">mock.</span>
+        mock<span class="syntax11">.</span><span class="syntax9">Expect</span>(<span class="syntax3">"</span><span class="syntax3">Eat</span><span class="syntax3">"</span><span class="syntax11">,</span> <span class="syntax6">new</span> <span class="syntax9">IsEqual</span>(<span class="syntax3">"</span><span class="syntax3">cheese</span><span class="syntax3">"</span>)<span class="syntax11">,</span> <span class="syntax6">new</span> <span class="syntax9">IsAnything</span>()<span class="syntax11">,</span> <span class="syntax6">new</span> <span class="syntax9">IsAnything</span>())<span class="syntax11">;</span> <span class="syntax1">//</span> <span class="syntax1">see</span> <span class="syntax1">below</span>
+        mock<span class="syntax11">.</span><span class="syntax9">ExpectNotCalled</span>(<span class="syntax3">"</span><span class="syntax3">Nap</span><span class="syntax3">"</span>)<span class="syntax11">;</span>
+
+        <span class="syntax1">//</span> <span class="syntax1">EXECUTE</span> <span class="syntax1">:</span> <span class="syntax1">any</span> <span class="syntax1">unexpected</span> <span class="syntax1">calls</span> <span class="syntax1">on</span> <span class="syntax1">the</span> <span class="syntax1">mock</span> <span class="syntax1">will</span> <span class="syntax1">fail</span> <span class="syntax1">here.</span>
+        classUnderTest<span class="syntax11">.</span><span class="syntax9">DoYourStuff</span>()<span class="syntax11">;</span>
+
+        <span class="syntax1">//</span> <span class="syntax1">VERIFY:</span> <span class="syntax1">checks</span> <span class="syntax1">that</span> <span class="syntax1">all</span> <span class="syntax1">expectations</span> <span class="syntax1">have</span> <span class="syntax1">been</span> <span class="syntax1">met</span>
+        mock<span class="syntax11">.</span><span class="syntax9">Verify</span>()<span class="syntax11">;</span> <span class="syntax1">//</span> <span class="syntax1">note:</span> <span class="syntax1">no</span> <span class="syntax1">Assertions.</span>
+    <span class="syntax11">}</span>
+
+</pre>
+
+    <p>The important line is:</p>
+<pre>
+    mock.Expect("Eat", new IsEqual("cheese"), new IsAnything(), new IsAnything());
+</pre>
+
+    <p>This says: expect the Eat() method to be called on the mock, and the three arguments must match the following constraints:</p>
+<pre>
+    arg1 == "cheese", arg2 is anything, arg3 is anything.
+</pre>
+
+    <p>If Eat() is called with any arguments that don't match these constraints, the test will fail fast.</p>
+
+    <h2>Constraints</h2>
+
+    <p>For an expectation to be fulfilled, each parameter passed in by the code under test must match a Constraint.</p>
+
+    <p>Constraints are mini rules, such as IsEqual(), IsNotEqual(), IsNull(), IsAnything(), etc. NMock comes with a library of flexible constraints. The main constraints (with examples) are:</p>
+
+    <table border="1" cellspacing="0" cellpadding="0" width="889" style="width: 666.75pt; margin-left: 4.65pt; border-collapse: collapse;">
+      <tbody>
+        <tr style="page-break-inside: avoid; height: 15pt;">
+          <td width="170" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; width: 127.35pt; height: 15pt;">
+            <p><span style="font-size: 10pt; font-family: Arial;">&nbsp;</span></p>
+          </td>
+
+          <td width="251" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; width: 188.4pt; height: 15pt;">
+            <p><span style="font-size: 10pt; font-family: Arial;">&nbsp;</span></p>
+          </td>
+
+          <td width="175" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; background: rgb(255, 255, 153) none repeat scroll 0% 50%; -moz-background-clip: initial; -moz-background-origin: initial; -moz-background-inline-policy: initial; width: 131.25pt; height: 15pt;">
+            <p><span class="StyleArial11ptBold"><span style="font-size: 8pt;">Example</span></span></p>
+          </td>
+
+          <td width="149" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; background: rgb(204, 255, 204) none repeat scroll 0% 50%; -moz-background-clip: initial; -moz-background-origin: initial; -moz-background-inline-policy: initial; width: 111.75pt; height: 15pt;">
+            <p><span class="StyleArial11ptBold"><span style="font-size: 8pt;">Values that will pass</span></span></p>
+          </td>
+
+          <td width="144" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; background: rgb(255, 204, 153) none repeat scroll 0% 50%; -moz-background-clip: initial; -moz-background-origin: initial; -moz-background-inline-policy: initial; width: 1.5in; height: 15pt;">
+            <p><span class="StyleArial11ptBold"><span style="font-size: 8pt;">Values that will fail</span></span></p>
+          </td>
+        </tr>
+
+        <tr style="page-break-inside: avoid; height: 12.75pt;">
+          <td width="170" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; width: 127.35pt; height: 12.75pt;">
+            <p><span style="font-size: 10pt; font-family: Arial;">&nbsp;</span></p>
+          </td>
+
+          <td width="251" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; width: 188.4pt; height: 12.75pt;">
+            <p><span style="font-size: 10pt; font-family: Arial;">&nbsp;</span></p>
+          </td>
+
+          <td width="175" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; background: rgb(255, 255, 153) none repeat scroll 0% 50%; -moz-background-clip: initial; -moz-background-origin: initial; -moz-background-inline-policy: initial; width: 131.25pt; height: 12.75pt;">
+            <p><span style="font-size: 8pt; font-family: Arial;">&nbsp;</span></p>
+          </td>
+
+          <td width="149" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; background: rgb(204, 255, 204) none repeat scroll 0% 50%; -moz-background-clip: initial; -moz-background-origin: initial; -moz-background-inline-policy: initial; width: 111.75pt; height: 12.75pt;">
+            <p><span style="font-size: 8pt; font-family: Arial;">&nbsp;</span></p>
+          </td>
+
+          <td width="144" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; background: rgb(255, 204, 153) none repeat scroll 0% 50%; -moz-background-clip: initial; -moz-background-origin: initial; -moz-background-inline-policy: initial; width: 1.5in; height: 12.75pt;">
+            <p><span style="font-size: 8pt; font-family: Arial;">&nbsp;</span></p>
+          </td>
+        </tr>
+
+        <tr style="page-break-inside: avoid; height: 15.75pt;">
+          <td width="170" nowrap="nowrap" valign="bottom" style="border-style: none none solid; border-color: -moz-use-text-color -moz-use-text-color windowtext; border-width: medium medium 1pt; padding: 0in 5.4pt; width: 127.35pt; height: 15.75pt;">
+            <p><span class="StyleArialBold1"><span style="font-size: 8pt;">Basic constraints</span></span></p>
+          </td>
+
+          <td width="251" nowrap="nowrap" valign="bottom" style="border-style: none none solid; border-color: -moz-use-text-color -moz-use-text-color windowtext; border-width: medium medium 1pt; padding: 0in 5.4pt; width: 188.4pt; height: 15.75pt;">
+            <p><span class="StyleArialBold1"><span style="font-size: 8pt;">Most common constraints for testing a value</span></span></p>
+          </td>
+
+          <td width="175" nowrap="nowrap" valign="bottom" style="border-style: none none solid; border-color: -moz-use-text-color -moz-use-text-color windowtext; border-width: medium medium 1pt; padding: 0in 5.4pt; background: rgb(255, 255, 153) none repeat scroll 0% 50%; -moz-background-clip: initial; -moz-background-origin: initial; -moz-background-inline-policy: initial; width: 131.25pt; height: 15.75pt;">
+            <p><span style="font-family: Arial;">&nbsp;</span></p>
+          </td>
+
+          <td width="149" nowrap="nowrap" valign="bottom" style="border-style: none none solid; border-color: -moz-use-text-color -moz-use-text-color windowtext; border-width: medium medium 1pt; padding: 0in 5.4pt; background: rgb(204, 255, 204) none repeat scroll 0% 50%; -moz-background-clip: initial; -moz-background-origin: initial; -moz-background-inline-policy: initial; width: 111.75pt; height: 15.75pt;">
+            <p><span style="font-family: Arial;">&nbsp;</span></p>
+          </td>
+
+          <td width="144" nowrap="nowrap" valign="bottom" style="border-style: none none solid; border-color: -moz-use-text-color -moz-use-text-color windowtext; border-width: medium medium 1pt; padding: 0in 5.4pt; background: rgb(255, 204, 153) none repeat scroll 0% 50%; -moz-background-clip: initial; -moz-background-origin: initial; -moz-background-inline-policy: initial; width: 1.5in; height: 15.75pt;">
+            <p><span style="font-family: Arial;">&nbsp;</span></p>
+          </td>
+        </tr>
+
+        <tr style="page-break-inside: avoid; height: 12.75pt;">
+          <td width="170" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; width: 127.35pt; height: 12.75pt;">
+            <p><span class="StyleArial10pt"><span style="font-size: 8pt;">IsEqual(object expected)</span></span></p>
+          </td>
+
+          <td width="251" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; width: 188.4pt; height: 12.75pt;">
+            <p><span class="StyleArial10pt"><span style="font-size: 8pt;">Passes if</span></span> <span class="StyleArial10ptBold"><span style="font-size: 8pt;">expected.Equals(actual)</span></span></p>
+          </td>
+
+          <td width="175" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; background: rgb(255, 255, 153) none repeat scroll 0% 50%; -moz-background-clip: initial; -moz-background-origin: initial; -moz-background-inline-policy: initial; width: 131.25pt; height: 12.75pt;">
+            <p><span style="font-size: 8pt; font-family: Arial;">new IsEqual("hello");</span></p>
+          </td>
+
+          <td width="149" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; background: rgb(204, 255, 204) none repeat scroll 0% 50%; -moz-background-clip: initial; -moz-background-origin: initial; -moz-background-inline-policy: initial; width: 111.75pt; height: 12.75pt;">
+            <p><span style="font-size: 8pt; font-family: Arial;">"hello"</span></p>
+          </td>
+
+          <td width="144" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; background: rgb(255, 204, 153) none repeat scroll 0% 50%; -moz-background-clip: initial; -moz-background-origin: initial; -moz-background-inline-policy: initial; width: 1.5in; height: 12.75pt;">
+            <p><span style="font-size: 8pt; font-family: Arial;">"boo", "HELLO", "&nbsp;&nbsp; hello "</span></p>
+          </td>
+        </tr>
+
+        <tr style="page-break-inside: avoid; height: 12.75pt;">
+          <td width="170" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; width: 127.35pt; height: 12.75pt;">
+            <p><span class="StyleArial10pt"><span style="font-size: 8pt;">IsNull()</span></span></p>
+          </td>
+
+          <td width="251" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; width: 188.4pt; height: 12.75pt;">
+            <p><span class="StyleArial10pt"><span style="font-size: 8pt;">Passes if actual is null</span></span></p>
+          </td>
+
+          <td width="175" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; background: rgb(255, 255, 153) none repeat scroll 0% 50%; -moz-background-clip: initial; -moz-background-origin: initial; -moz-background-inline-policy: initial; width: 131.25pt; height: 12.75pt;">
+            <p><span style="font-size: 8pt; font-family: Arial;">new IsNull();</span></p>
+          </td>
+
+          <td width="149" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; background: rgb(204, 255, 204) none repeat scroll 0% 50%; -moz-background-clip: initial; -moz-background-origin: initial; -moz-background-inline-policy: initial; width: 111.75pt; height: 12.75pt;">
+            <p><span style="font-size: 8pt; font-family: Arial;">Null</span></p>
+          </td>
+
+          <td width="144" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; background: rgb(255, 204, 153) none repeat scroll 0% 50%; -moz-background-clip: initial; -moz-background-origin: initial; -moz-background-inline-policy: initial; width: 1.5in; height: 12.75pt;">
+            <p><span style="font-size: 8pt; font-family: Arial;">"thing"</span></p>
+          </td>
+        </tr>
+
+        <tr style="page-break-inside: avoid; height: 12.75pt;">
+          <td width="170" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; width: 127.35pt; height: 12.75pt;">
+            <p><span class="StyleArial10pt"><span style="font-size: 8pt;">IsAnything()</span></span></p>
+          </td>
+
+          <td width="251" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; width: 188.4pt; height: 12.75pt;">
+            <p><span class="StyleArial10pt"><span style="font-size: 8pt;">Always passes</span></span></p>
+          </td>
+
+          <td width="175" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; background: rgb(255, 255, 153) none repeat scroll 0% 50%; -moz-background-clip: initial; -moz-background-origin: initial; -moz-background-inline-policy: initial; width: 131.25pt; height: 12.75pt;">
+            <p><span style="font-size: 8pt; font-family: Arial;">new IsAnything();</span></p>
+          </td>
+
+          <td width="149" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; background: rgb(204, 255, 204) none repeat scroll 0% 50%; -moz-background-clip: initial; -moz-background-origin: initial; -moz-background-inline-policy: initial; width: 111.75pt; height: 12.75pt;">
+            <p><span style="font-size: 8pt; font-family: Arial;">"foo", 3, new Thingy(), null</span></p>
+          </td>
+
+          <td width="144" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; background: rgb(255, 204, 153) none repeat scroll 0% 50%; -moz-background-clip: initial; -moz-background-origin: initial; -moz-background-inline-policy: initial; width: 1.5in; height: 12.75pt;">
+            <p><span style="font-size: 8pt; font-family: Arial;">(nothing!)</span></p>
+          </td>
+        </tr>
+
+        <tr style="page-break-inside: avoid; height: 12.75pt;">
+          <td width="170" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; width: 127.35pt; height: 12.75pt;">
+            <p><span class="StyleArial10pt"><span style="font-size: 8pt;">IsTypeOf(Type type);</span></span></p>
+          </td>
+
+          <td width="251" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; width: 188.4pt; height: 12.75pt;">
+            <p><span class="StyleArial10pt"><span style="font-size: 8pt;">Passes if actual is of a specific type</span></span></p>
+          </td>
+
+          <td width="175" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; background: rgb(255, 255, 153) none repeat scroll 0% 50%; -moz-background-clip: initial; -moz-background-origin: initial; -moz-background-inline-policy: initial; width: 131.25pt; height: 12.75pt;">
+            <p><span style="font-size: 8pt; font-family: Arial;">new IsTypeOf(typeof(IList));</span></p>
+          </td>
+
+          <td width="149" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; background: rgb(204, 255, 204) none repeat scroll 0% 50%; -moz-background-clip: initial; -moz-background-origin: initial; -moz-background-inline-policy: initial; width: 111.75pt; height: 12.75pt;">
+            <p><span style="font-size: 8pt; font-family: Arial;">new ArrayList();</span></p>
+          </td>
+
+          <td width="144" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; background: rgb(255, 204, 153) none repeat scroll 0% 50%; -moz-background-clip: initial; -moz-background-origin: initial; -moz-background-inline-policy: initial; width: 1.5in; height: 12.75pt;">
+            <p><span style="font-size: 8pt; font-family: Arial;">new HashTable();</span></p>
+          </td>
+        </tr>
+
+        <tr style="page-break-inside: avoid; height: 12.75pt;">
+          <td width="170" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; width: 127.35pt; height: 12.75pt;">
+            <p><span class="StyleArial10pt"><span style="font-size: 8pt;">IsIn(param object[] list)</span></span></p>
+          </td>
+
+          <td width="251" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; width: 188.4pt; height: 12.75pt;">
+            <p><span class="StyleArial10pt"><span style="font-size: 8pt;">Passes if actual is equal to any specified value</span></span></p>
+          </td>
+
+          <td width="175" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; background: rgb(255, 255, 153) none repeat scroll 0% 50%; -moz-background-clip: initial; -moz-background-origin: initial; -moz-background-inline-policy: initial; width: 131.25pt; height: 12.75pt;">
+            <p><span style="font-size: 8pt; font-family: Arial;">new IsIn("a", "b", "c");</span></p>
+          </td>
+
+          <td width="149" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; background: rgb(204, 255, 204) none repeat scroll 0% 50%; -moz-background-clip: initial; -moz-background-origin: initial; -moz-background-inline-policy: initial; width: 111.75pt; height: 12.75pt;">
+            <p><span style="font-size: 8pt; font-family: Arial;">"a", "b", "c"</span></p>
+          </td>
+
+          <td width="144" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; background: rgb(255, 204, 153) none repeat scroll 0% 50%; -moz-background-clip: initial; -moz-background-origin: initial; -moz-background-inline-policy: initial; width: 1.5in; height: 12.75pt;">
+            <p><span style="font-size: 8pt; font-family: Arial;">"d"</span></p>
+          </td>
+        </tr>
+
+        <tr style="page-break-inside: avoid; height: 12.75pt;">
+          <td width="170" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; width: 127.35pt; height: 12.75pt;">
+            <p><span style="font-size: 10pt; font-family: Arial;">&nbsp;</span></p>
+          </td>
+
+          <td width="251" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; width: 188.4pt; height: 12.75pt;">
+            <p><span style="font-size: 10pt; font-family: Arial;">&nbsp;</span></p>
+          </td>
+
+          <td width="175" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; background: rgb(255, 255, 153) none repeat scroll 0% 50%; -moz-background-clip: initial; -moz-background-origin: initial; -moz-background-inline-policy: initial; width: 131.25pt; height: 12.75pt;">
+            <p><span style="font-size: 8pt; font-family: Arial;">&nbsp;</span></p>
+          </td>
+
+          <td width="149" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; background: rgb(204, 255, 204) none repeat scroll 0% 50%; -moz-background-clip: initial; -moz-background-origin: initial; -moz-background-inline-policy: initial; width: 111.75pt; height: 12.75pt;">
+            <p><span style="font-size: 8pt; font-family: Arial;">&nbsp;</span></p>
+          </td>
+
+          <td width="144" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; background: rgb(255, 204, 153) none repeat scroll 0% 50%; -moz-background-clip: initial; -moz-background-origin: initial; -moz-background-inline-policy: initial; width: 1.5in; height: 12.75pt;">
+            <p><span style="font-size: 8pt; font-family: Arial;">&nbsp;</span></p>
+          </td>
+        </tr>
+
+        <tr style="page-break-inside: avoid; height: 15.75pt;">
+          <td width="170" nowrap="nowrap" valign="bottom" style="border-style: none none solid; border-color: -moz-use-text-color -moz-use-text-color windowtext; border-width: medium medium 1pt; padding: 0in 5.4pt; width: 127.35pt; height: 15.75pt;">
+            <p><span class="StyleArialBold1"><span style="font-size: 8pt;">Chained constraints</span></span></p>
+          </td>
+
+          <td width="251" nowrap="nowrap" valign="bottom" style="border-style: none none solid; border-color: -moz-use-text-color -moz-use-text-color windowtext; border-width: medium medium 1pt; padding: 0in 5.4pt; width: 188.4pt; height: 15.75pt;">
+            <p><span class="StyleArialBold1"><span style="font-size: 8pt;">Allow contraints to be nested for logic</span></span></p>
+          </td>
+
+          <td width="175" nowrap="nowrap" valign="bottom" style="border-style: none none solid; border-color: -moz-use-text-color -moz-use-text-color windowtext; border-width: medium medium 1pt; padding: 0in 5.4pt; background: rgb(255, 255, 153) none repeat scroll 0% 50%; -moz-background-clip: initial; -moz-background-origin: initial; -moz-background-inline-policy: initial; width: 131.25pt; height: 15.75pt;">
+            <p><span style="font-family: Arial;">&nbsp;</span></p>
+          </td>
+
+          <td width="149" nowrap="nowrap" valign="bottom" style="border-style: none none solid; border-color: -moz-use-text-color -moz-use-text-color windowtext; border-width: medium medium 1pt; padding: 0in 5.4pt; background: rgb(204, 255, 204) none repeat scroll 0% 50%; -moz-background-clip: initial; -moz-background-origin: initial; -moz-background-inline-policy: initial; width: 111.75pt; height: 15.75pt;">
+            <p><span style="font-family: Arial;">&nbsp;</span></p>
+          </td>
+
+          <td width="144" nowrap="nowrap" valign="bottom" style="border-style: none none solid; border-color: -moz-use-text-color -moz-use-text-color windowtext; border-width: medium medium 1pt; padding: 0in 5.4pt; background: rgb(255, 204, 153) none repeat scroll 0% 50%; -moz-background-clip: initial; -moz-background-origin: initial; -moz-background-inline-policy: initial; width: 1.5in; height: 15.75pt;">
+            <p><span style="font-family: Arial;">&nbsp;</span></p>
+          </td>
+        </tr>
+
+        <tr style="page-break-inside: avoid; height: 12.75pt;">
+          <td width="170" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; width: 127.35pt; height: 12.75pt;">
+            <p><span class="StyleArial10pt"><span style="font-size: 8pt;">Not(IConstraint constraint)</span></span></p>
+          </td>
+
+          <td width="251" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; width: 188.4pt; height: 12.75pt;">
+            <p><span class="StyleArial10pt"><span style="font-size: 8pt;">Passes only if the constraint fails</span></span></p>
+          </td>
+
+          <td width="175" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; background: rgb(255, 255, 153) none repeat scroll 0% 50%; -moz-background-clip: initial; -moz-background-origin: initial; -moz-background-inline-policy: initial; width: 131.25pt; height: 12.75pt;">
+            <p><span style="font-size: 8pt; font-family: Arial;">new Not(new IsNull());</span></p>
+          </td>
+
+          <td width="149" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; background: rgb(204, 255, 204) none repeat scroll 0% 50%; -moz-background-clip: initial; -moz-background-origin: initial; -moz-background-inline-policy: initial; width: 111.75pt; height: 12.75pt;">
+            <p><span style="font-size: 8pt; font-family: Arial;">"hello"</span></p>
+          </td>
+
+          <td width="144" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; background: rgb(255, 204, 153) none repeat scroll 0% 50%; -moz-background-clip: initial; -moz-background-origin: initial; -moz-background-inline-policy: initial; width: 1.5in; height: 12.75pt;">
+            <p><span style="font-size: 8pt; font-family: Arial;">null</span></p>
+          </td>
+        </tr>
+
+        <tr style="page-break-inside: avoid; height: 12.75pt;">
+          <td width="170" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; width: 127.35pt; height: 12.75pt;">
+            <p><span class="StyleArial10pt"><span style="font-size: 8pt;">Or(IConstraint a, IConstraint b)</span></span></p>
+          </td>
+
+          <td width="251" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; width: 188.4pt; height: 12.75pt;">
+            <p><span class="StyleArial10pt"><span style="font-size: 8pt;">Passes if either constraint passes</span></span></p>
+          </td>
+
+          <td width="175" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; background: rgb(255, 255, 153) none repeat scroll 0% 50%; -moz-background-clip: initial; -moz-background-origin: initial; -moz-background-inline-policy: initial; width: 131.25pt; height: 12.75pt;">
+            <p><span style="font-size: 8pt; font-family: Arial;">new Or(new IsEqual("cheese"), new IsEqual("food"))</span></p>
+          </td>
+
+          <td width="149" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; background: rgb(204, 255, 204) none repeat scroll 0% 50%; -moz-background-clip: initial; -moz-background-origin: initial; -moz-background-inline-policy: initial; width: 111.75pt; height: 12.75pt;">
+            <p><span style="font-size: 8pt; font-family: Arial;">"cheese", "food"</span></p>
+          </td>
+
+          <td width="144" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; background: rgb(255, 204, 153) none repeat scroll 0% 50%; -moz-background-clip: initial; -moz-background-origin: initial; -moz-background-inline-policy: initial; width: 1.5in; height: 12.75pt;">
+            <p><span style="font-size: 8pt; font-family: Arial;">"parrot"</span></p>
+          </td>
+        </tr>
+
+        <tr style="page-break-inside: avoid; height: 12.75pt;">
+          <td width="170" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; width: 127.35pt; height: 12.75pt;">
+            <p><span class="StyleArial10pt"><span style="font-size: 8pt;">And(IConstraint a, IConstraint b)</span></span></p>
+          </td>
+
+          <td width="251" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; width: 188.4pt; height: 12.75pt;">
+            <p><span class="StyleArial10pt"><span style="font-size: 8pt;">Passes if both constraints pass</span></span></p>
+          </td>
+
+          <td width="175" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; background: rgb(255, 255, 153) none repeat scroll 0% 50%; -moz-background-clip: initial; -moz-background-origin: initial; -moz-background-inline-policy: initial; width: 131.25pt; height: 12.75pt;">
+            <p><span style="font-size: 8pt; font-family: Arial;">&nbsp;</span></p>
+          </td>
+
+          <td width="149" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; background: rgb(204, 255, 204) none repeat scroll 0% 50%; -moz-background-clip: initial; -moz-background-origin: initial; -moz-background-inline-policy: initial; width: 111.75pt; height: 12.75pt;">
+            <p><span style="font-size: 8pt; font-family: Arial;">&nbsp;</span></p>
+          </td>
+
+          <td width="144" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; background: rgb(255, 204, 153) none repeat scroll 0% 50%; -moz-background-clip: initial; -moz-background-origin: initial; -moz-background-inline-policy: initial; width: 1.5in; height: 12.75pt;">
+            <p><span style="font-size: 8pt; font-family: Arial;">&nbsp;</span></p>
+          </td>
+        </tr>
+
+        <tr style="page-break-inside: avoid; height: 12.75pt;">
+          <td width="170" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; width: 127.35pt; height: 12.75pt;">
+            <p><span class="StyleArial10pt"><span style="font-size: 8pt;">NotEqual()</span></span></p>
+          </td>
+
+          <td width="251" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; width: 188.4pt; height: 12.75pt;">
+            <p><span class="StyleArial10pt"><span style="font-size: 8pt;">Same as</span></span> <span class="StyleArial10ptBold"><span style="font-size: 8pt;">new Not(new IsEqual(&hellip;))</span></span></p>
+          </td>
+
+          <td width="175" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; background: rgb(255, 255, 153) none repeat scroll 0% 50%; -moz-background-clip: initial; -moz-background-origin: initial; -moz-background-inline-policy: initial; width: 131.25pt; height: 12.75pt;">
+            <p><span style="font-size: 8pt; font-family: Arial;">&nbsp;</span></p>
+          </td>
+
+          <td width="149" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; background: rgb(204, 255, 204) none repeat scroll 0% 50%; -moz-background-clip: initial; -moz-background-origin: initial; -moz-background-inline-policy: initial; width: 111.75pt; height: 12.75pt;">
+            <p><span style="font-size: 8pt; font-family: Arial;">&nbsp;</span></p>
+          </td>
+
+          <td width="144" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; background: rgb(255, 204, 153) none repeat scroll 0% 50%; -moz-background-clip: initial; -moz-background-origin: initial; -moz-background-inline-policy: initial; width: 1.5in; height: 12.75pt;">
+            <p><span style="font-size: 8pt; font-family: Arial;">&nbsp;</span></p>
+          </td>
+        </tr>
+
+        <tr style="page-break-inside: avoid; height: 12.75pt;">
+          <td width="170" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; width: 127.35pt; height: 12.75pt;">
+            <p><span class="StyleArial10pt"><span style="font-size: 8pt;">NotNull()</span></span></p>
+          </td>
+
+          <td width="251" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; width: 188.4pt; height: 12.75pt;">
+            <p><span class="StyleArial10pt"><span style="font-size: 8pt;">Same as</span></span> <span class="StyleArial10ptBold"><span style="font-size: 8pt;">new Not(new IsNull())</span></span></p>
+          </td>
+
+          <td width="175" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; background: rgb(255, 255, 153) none repeat scroll 0% 50%; -moz-background-clip: initial; -moz-background-origin: initial; -moz-background-inline-policy: initial; width: 131.25pt; height: 12.75pt;">
+            <p><span style="font-size: 8pt; font-family: Arial;">&nbsp;</span></p>
+          </td>
+
+          <td width="149" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; background: rgb(204, 255, 204) none repeat scroll 0% 50%; -moz-background-clip: initial; -moz-background-origin: initial; -moz-background-inline-policy: initial; width: 111.75pt; height: 12.75pt;">
+            <p><span style="font-size: 8pt; font-family: Arial;">&nbsp;</span></p>
+          </td>
+
+          <td width="144" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; background: rgb(255, 204, 153) none repeat scroll 0% 50%; -moz-background-clip: initial; -moz-background-origin: initial; -moz-background-inline-policy: initial; width: 1.5in; height: 12.75pt;">
+            <p><span style="font-size: 8pt; font-family: Arial;">&nbsp;</span></p>
+          </td>
+        </tr>
+
+        <tr style="page-break-inside: avoid; height: 12.75pt;">
+          <td width="170" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; width: 127.35pt; height: 12.75pt;">
+            <p><span class="StyleArial10pt"><span style="font-size: 8pt;">NotIn(param object[] list)</span></span></p>
+          </td>
+
+          <td width="251" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; width: 188.4pt; height: 12.75pt;">
+            <p><span class="StyleArial10pt"><span style="font-size: 8pt;">Same as</span></span> <span class="StyleArial10ptBold"><span style="font-size: 8pt;">new Not(new IsIn(&hellip;))</span></span></p>
+          </td>
+
+          <td width="175" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; background: rgb(255, 255, 153) none repeat scroll 0% 50%; -moz-background-clip: initial; -moz-background-origin: initial; -moz-background-inline-policy: initial; width: 131.25pt; height: 12.75pt;">
+            <p><span style="font-size: 8pt; font-family: Arial;">&nbsp;</span></p>
+          </td>
+
+          <td width="149" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; background: rgb(204, 255, 204) none repeat scroll 0% 50%; -moz-background-clip: initial; -moz-background-origin: initial; -moz-background-inline-policy: initial; width: 111.75pt; height: 12.75pt;">
+            <p><span style="font-size: 8pt; font-family: Arial;">&nbsp;</span></p>
+          </td>
+
+          <td width="144" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; background: rgb(255, 204, 153) none repeat scroll 0% 50%; -moz-background-clip: initial; -moz-background-origin: initial; -moz-background-inline-policy: initial; width: 1.5in; height: 12.75pt;">
+            <p><span style="font-size: 8pt; font-family: Arial;">&nbsp;</span></p>
+          </td>
+        </tr>
+
+        <tr style="page-break-inside: avoid; height: 12.75pt;">
+          <td width="170" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; width: 127.35pt; height: 12.75pt;">
+            <p><span style="font-size: 10pt; font-family: Arial;">&nbsp;</span></p>
+          </td>
+
+          <td width="251" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; width: 188.4pt; height: 12.75pt;">
+            <p><span style="font-size: 10pt; font-family: Arial;">&nbsp;</span></p>
+          </td>
+
+          <td width="175" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; background: rgb(255, 255, 153) none repeat scroll 0% 50%; -moz-background-clip: initial; -moz-background-origin: initial; -moz-background-inline-policy: initial; width: 131.25pt; height: 12.75pt;">
+            <p><span style="font-size: 8pt; font-family: Arial;">&nbsp;</span></p>
+          </td>
+
+          <td width="149" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; background: rgb(204, 255, 204) none repeat scroll 0% 50%; -moz-background-clip: initial; -moz-background-origin: initial; -moz-background-inline-policy: initial; width: 111.75pt; height: 12.75pt;">
+            <p><span style="font-size: 8pt; font-family: Arial;">&nbsp;</span></p>
+          </td>
+
+          <td width="144" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; background: rgb(255, 204, 153) none repeat scroll 0% 50%; -moz-background-clip: initial; -moz-background-origin: initial; -moz-background-inline-policy: initial; width: 1.5in; height: 12.75pt;">
+            <p><span style="font-size: 8pt; font-family: Arial;">&nbsp;</span></p>
+          </td>
+        </tr>
+
+        <tr style="page-break-inside: avoid; height: 15.75pt;">
+          <td width="170" nowrap="nowrap" valign="bottom" style="border-style: none none solid; border-color: -moz-use-text-color -moz-use-text-color windowtext; border-width: medium medium 1pt; padding: 0in 5.4pt; width: 127.35pt; height: 15.75pt;">
+            <p><span class="StyleArialBold1"><span style="font-size: 8pt;">String Constraints</span></span></p>
+          </td>
+
+          <td width="251" nowrap="nowrap" valign="bottom" style="border-style: none none solid; border-color: -moz-use-text-color -moz-use-text-color windowtext; border-width: medium medium 1pt; padding: 0in 5.4pt; width: 188.4pt; height: 15.75pt;">
+            <p><span class="StyleArialBold1"><span style="font-size: 8pt;">Operate on the ToString() representation of the objects</span></span></p>
+          </td>
+
+          <td width="175" nowrap="nowrap" valign="bottom" style="border-style: none none solid; border-color: -moz-use-text-color -moz-use-text-color windowtext; border-width: medium medium 1pt; padding: 0in 5.4pt; background: rgb(255, 255, 153) none repeat scroll 0% 50%; -moz-background-clip: initial; -moz-background-origin: initial; -moz-background-inline-policy: initial; width: 131.25pt; height: 15.75pt;">
+            <p><span style="font-family: Arial;">&nbsp;</span></p>
+          </td>
+
+          <td width="149" nowrap="nowrap" valign="bottom" style="border-style: none none solid; border-color: -moz-use-text-color -moz-use-text-color windowtext; border-width: medium medium 1pt; padding: 0in 5.4pt; background: rgb(204, 255, 204) none repeat scroll 0% 50%; -moz-background-clip: initial; -moz-background-origin: initial; -moz-background-inline-policy: initial; width: 111.75pt; height: 15.75pt;">
+            <p><span style="font-family: Arial;">&nbsp;</span></p>
+          </td>
+
+          <td width="144" nowrap="nowrap" valign="bottom" style="border-style: none none solid; border-color: -moz-use-text-color -moz-use-text-color windowtext; border-width: medium medium 1pt; padding: 0in 5.4pt; background: rgb(255, 204, 153) none repeat scroll 0% 50%; -moz-background-clip: initial; -moz-background-origin: initial; -moz-background-inline-policy: initial; width: 1.5in; height: 15.75pt;">
+            <p><span style="font-family: Arial;">&nbsp;</span></p>
+          </td>
+        </tr>
+
+        <tr style="page-break-inside: avoid; height: 12.75pt;">
+          <td width="170" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; width: 127.35pt; height: 12.75pt;">
+            <p><span class="StyleArial10pt"><span style="font-size: 8pt;">IsEqualIgnoreCase(object o)</span></span></p>
+          </td>
+
+          <td width="251" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; width: 188.4pt; height: 12.75pt;">
+            <p><span class="StyleArial10pt"><span style="font-size: 8pt;">Tests strings, ignoring case</span></span></p>
+          </td>
+
+          <td width="175" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; background: rgb(255, 255, 153) none repeat scroll 0% 50%; -moz-background-clip: initial; -moz-background-origin: initial; -moz-background-inline-policy: initial; width: 131.25pt; height: 12.75pt;">
+            <p><span style="font-size: 8pt; font-family: Arial;">new IsEqualIgnoreCase("hello")</span></p>
+          </td>
+
+          <td width="149" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; background: rgb(204, 255, 204) none repeat scroll 0% 50%; -moz-background-clip: initial; -moz-background-origin: initial; -moz-background-inline-policy: initial; width: 111.75pt; height: 12.75pt;">
+            <p><span style="font-size: 8pt; font-family: Arial;">"hello", "HELLO", "hEllO"</span></p>
+          </td>
+
+          <td width="144" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; background: rgb(255, 204, 153) none repeat scroll 0% 50%; -moz-background-clip: initial; -moz-background-origin: initial; -moz-background-inline-policy: initial; width: 1.5in; height: 12.75pt;">
+            <p><span style="font-size: 8pt; font-family: Arial;">"world", 3, " &nbsp;&nbsp;hello&nbsp;&nbsp; "</span></p>
+          </td>
+        </tr>
+
+        <tr style="page-break-inside: avoid; height: 12.75pt;">
+          <td width="170" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; width: 127.35pt; height: 12.75pt;">
+            <p><span class="StyleArial10pt"><span style="font-size: 8pt;">IsEqualIgnoreWhiteSpace(object o)</span></span></p>
+          </td>
+
+          <td width="251" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; width: 188.4pt; height: 12.75pt;">
+            <p><span class="StyleArial10pt"><span style="font-size: 8pt;">Tests strings, ignoring whitespace</span></span></p>
+          </td>
+
+          <td width="175" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; background: rgb(255, 255, 153) none repeat scroll 0% 50%; -moz-background-clip: initial; -moz-background-origin: initial; -moz-background-inline-policy: initial; width: 131.25pt; height: 12.75pt;">
+            <p><span style="font-size: 8pt; font-family: Arial;">new IsEqualIgnoreWhiteSpace("hello")</span></p>
+          </td>
+
+          <td width="149" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; background: rgb(204, 255, 204) none repeat scroll 0% 50%; -moz-background-clip: initial; -moz-background-origin: initial; -moz-background-inline-policy: initial; width: 111.75pt; height: 12.75pt;">
+            <p><span style="font-size: 8pt; font-family: Arial;">"hello", "&nbsp; hello ", "h e l\n\rlo"</span></p>
+          </td>
+
+          <td width="144" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; background: rgb(255, 204, 153) none repeat scroll 0% 50%; -moz-background-clip: initial; -moz-background-origin: initial; -moz-background-inline-policy: initial; width: 1.5in; height: 12.75pt;">
+            <p><span style="font-size: 8pt; font-family: Arial;">"HELLO", "foo"</span></p>
+          </td>
+        </tr>
+
+        <tr style="page-break-inside: avoid; height: 12.75pt;">
+          <td width="170" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; width: 127.35pt; height: 12.75pt;">
+            <p><span class="StyleArial10pt"><span style="font-size: 8pt;">IsMatch(Regex regex)</span></span></p>
+          </td>
+
+          <td width="251" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; width: 188.4pt; height: 12.75pt;">
+            <p><span class="StyleArial10pt"><span style="font-size: 8pt;">Tests if actual matches a regular expression</span></span></p>
+          </td>
+
+          <td width="175" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; background: rgb(255, 255, 153) none repeat scroll 0% 50%; -moz-background-clip: initial; -moz-background-origin: initial; -moz-background-inline-policy: initial; width: 131.25pt; height: 12.75pt;">
+            <p><span style="font-size: 8pt; font-family: Arial;">new IsMatch(new Regex("f.*t"))</span></p>
+          </td>
+
+          <td width="149" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; background: rgb(204, 255, 204) none repeat scroll 0% 50%; -moz-background-clip: initial; -moz-background-origin: initial; -moz-background-inline-policy: initial; width: 111.75pt; height: 12.75pt;">
+            <p><span style="font-size: 8pt; font-family: Arial;">"fat", "fit", "fart", "foo pat"</span></p>
+          </td>
+
+          <td width="144" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; background: rgb(255, 204, 153) none repeat scroll 0% 50%; -moz-background-clip: initial; -moz-background-origin: initial; -moz-background-inline-policy: initial; width: 1.5in; height: 12.75pt;">
+            <p><span style="font-size: 8pt; font-family: Arial;">"farm"</span></p>
+          </td>
+        </tr>
+
+        <tr style="page-break-inside: avoid; height: 12.75pt;">
+          <td width="170" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; width: 127.35pt; height: 12.75pt;">
+            <p><span class="StyleArial10pt"><span style="font-size: 8pt;">StartsWith(string prefix)</span></span></p>
+          </td>
+
+          <td width="251" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; width: 188.4pt; height: 12.75pt;">
+            <p><span class="StyleArial10pt"><span style="font-size: 8pt;">Tests if actual starts a value</span></span></p>
+          </td>
+
+          <td width="175" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; background: rgb(255, 255, 153) none repeat scroll 0% 50%; -moz-background-clip: initial; -moz-background-origin: initial; -moz-background-inline-policy: initial; width: 131.25pt; height: 12.75pt;">
+            <p><span style="font-size: 8pt; font-family: Arial;">new StartsWith("wa");</span></p>
+          </td>
+
+          <td width="149" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; background: rgb(204, 255, 204) none repeat scroll 0% 50%; -moz-background-clip: initial; -moz-background-origin: initial; -moz-background-inline-policy: initial; width: 111.75pt; height: 12.75pt;">
+            <p><span style="font-size: 8pt; font-family: Arial;">"wart", "wa"</span></p>
+          </td>
+
+          <td width="144" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; background: rgb(255, 204, 153) none repeat scroll 0% 50%; -moz-background-clip: initial; -moz-background-origin: initial; -moz-background-inline-policy: initial; width: 1.5in; height: 12.75pt;">
+            <p><span style="font-size: 8pt; font-family: Arial;">"kawa"</span></p>
+          </td>
+        </tr>
+
+        <tr style="page-break-inside: avoid; height: 12.75pt;">
+          <td width="170" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; width: 127.35pt; height: 12.75pt;">
+            <p><span style="font-size: 10pt; font-family: Arial;">&nbsp;</span></p>
+          </td>
+
+          <td width="251" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; width: 188.4pt; height: 12.75pt;">
+            <p><span style="font-size: 10pt; font-family: Arial;">&nbsp;</span></p>
+          </td>
+
+          <td width="175" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; background: rgb(255, 255, 153) none repeat scroll 0% 50%; -moz-background-clip: initial; -moz-background-origin: initial; -moz-background-inline-policy: initial; width: 131.25pt; height: 12.75pt;">
+            <p><span style="font-size: 8pt; font-family: Arial;">&nbsp;</span></p>
+          </td>
+
+          <td width="149" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; background: rgb(204, 255, 204) none repeat scroll 0% 50%; -moz-background-clip: initial; -moz-background-origin: initial; -moz-background-inline-policy: initial; width: 111.75pt; height: 12.75pt;">
+            <p><span style="font-size: 8pt; font-family: Arial;">&nbsp;</span></p>
+          </td>
+
+          <td width="144" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; background: rgb(255, 204, 153) none repeat scroll 0% 50%; -moz-background-clip: initial; -moz-background-origin: initial; -moz-background-inline-policy: initial; width: 1.5in; height: 12.75pt;">
+            <p><span style="font-size: 8pt; font-family: Arial;">&nbsp;</span></p>
+          </td>
+        </tr>
+
+        <tr style="page-break-inside: avoid; height: 15.75pt;">
+          <td width="170" nowrap="nowrap" valign="bottom" style="border-style: none none solid; border-color: -moz-use-text-color -moz-use-text-color windowtext; border-width: medium medium 1pt; padding: 0in 5.4pt; width: 127.35pt; height: 15.75pt;">
+            <p><span class="StyleArialBold1"><span style="font-size: 8pt;">Misc Constraints</span></span></p>
+          </td>
+
+          <td width="251" nowrap="nowrap" valign="bottom" style="border-style: none none solid; border-color: -moz-use-text-color -moz-use-text-color windowtext; border-width: medium medium 1pt; padding: 0in 5.4pt; width: 188.4pt; height: 15.75pt;">
+            <p><span style="font-family: Arial;">&nbsp;</span></p>
+          </td>
+
+          <td width="175" nowrap="nowrap" valign="bottom" style="border-style: none none solid; border-color: -moz-use-text-color -moz-use-text-color windowtext; border-width: medium medium 1pt; padding: 0in 5.4pt; background: rgb(255, 255, 153) none repeat scroll 0% 50%; -moz-background-clip: initial; -moz-background-origin: initial; -moz-background-inline-policy: initial; width: 131.25pt; height: 15.75pt;">
+            <p><span style="font-family: Arial;">&nbsp;</span></p>
+          </td>
+
+          <td width="149" nowrap="nowrap" valign="bottom" style="border-style: none none solid; border-color: -moz-use-text-color -moz-use-text-color windowtext; border-width: medium medium 1pt; padding: 0in 5.4pt; background: rgb(204, 255, 204) none repeat scroll 0% 50%; -moz-background-clip: initial; -moz-background-origin: initial; -moz-background-inline-policy: initial; width: 111.75pt; height: 15.75pt;">
+            <p><span style="font-family: Arial;">&nbsp;</span></p>
+          </td>
+
+          <td width="144" nowrap="nowrap" valign="bottom" style="border-style: none none solid; border-color: -moz-use-text-color -moz-use-text-color windowtext; border-width: medium medium 1pt; padding: 0in 5.4pt; background: rgb(255, 204, 153) none repeat scroll 0% 50%; -moz-background-clip: initial; -moz-background-origin: initial; -moz-background-inline-policy: initial; width: 1.5in; height: 15.75pt;">
+            <p><span style="font-family: Arial;">&nbsp;</span></p>
+          </td>
+        </tr>
+
+        <tr style="page-break-inside: avoid; height: 12.75pt;">
+          <td width="170" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; width: 127.35pt; height: 12.75pt;">
+            <p><span class="StyleArial10pt"><span style="font-size: 8pt;">IsCloseTo(double expected, double tolerance)</span></span></p>
+          </td>
+
+          <td width="251" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; width: 188.4pt; height: 12.75pt;">
+            <p><span class="StyleArial10pt"><span style="font-size: 8pt;">Passes if actual is within tolerance of expected</span></span></p>
+          </td>
+
+          <td width="175" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; background: rgb(255, 255, 153) none repeat scroll 0% 50%; -moz-background-clip: initial; -moz-background-origin: initial; -moz-background-inline-policy: initial; width: 131.25pt; height: 12.75pt;">
+            <p><span style="font-size: 8pt; font-family: Arial;">new IsCloseTo(500.0, 0.5)</span></p>
+          </td>
+
+          <td width="149" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; background: rgb(204, 255, 204) none repeat scroll 0% 50%; -moz-background-clip: initial; -moz-background-origin: initial; -moz-background-inline-policy: initial; width: 111.75pt; height: 12.75pt;">
+            <p><span style="font-size: 8pt; font-family: Arial;">500.0, 499.6, 500.4</span></p>
+          </td>
+
+          <td width="144" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; background: rgb(255, 204, 153) none repeat scroll 0% 50%; -moz-background-clip: initial; -moz-background-origin: initial; -moz-background-inline-policy: initial; width: 1.5in; height: 12.75pt;">
+            <p><span style="font-size: 8pt; font-family: Arial;">499.0, 501.1</span></p>
+          </td>
+        </tr>
+
+        <tr style="page-break-inside: avoid; height: 12.75pt;">
+          <td width="170" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; width: 127.35pt; height: 12.75pt;">
+            <p><span class="StyleArial10pt"><span style="font-size: 8pt;">IsListEqual(IList expected)</span></span></p>
+          </td>
+
+          <td width="251" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; width: 188.4pt; height: 12.75pt;">
+            <p><span style="font-size: 10pt; font-family: Arial;">&nbsp;</span></p>
+          </td>
+
+          <td width="175" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; background: rgb(255, 255, 153) none repeat scroll 0% 50%; -moz-background-clip: initial; -moz-background-origin: initial; -moz-background-inline-policy: initial; width: 131.25pt; height: 12.75pt;">
+            <p><span style="font-size: 8pt; font-family: Arial;">&nbsp;</span></p>
+          </td>
+
+          <td width="149" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; background: rgb(204, 255, 204) none repeat scroll 0% 50%; -moz-background-clip: initial; -moz-background-origin: initial; -moz-background-inline-policy: initial; width: 111.75pt; height: 12.75pt;">
+            <p><span style="font-size: 8pt; font-family: Arial;">&nbsp;</span></p>
+          </td>
+
+          <td width="144" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; background: rgb(255, 204, 153) none repeat scroll 0% 50%; -moz-background-clip: initial; -moz-background-origin: initial; -moz-background-inline-policy: initial; width: 1.5in; height: 12.75pt;">
+            <p><span style="font-size: 8pt; font-family: Arial;">&nbsp;</span></p>
+          </td>
+        </tr>
+
+        <tr style="page-break-inside: avoid; height: 12.75pt;">
+          <td width="170" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; width: 127.35pt; height: 12.75pt;">
+            <p><span style="font-size: 10pt; font-family: Arial;">&nbsp;</span></p>
+          </td>
+
+          <td width="251" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; width: 188.4pt; height: 12.75pt;">
+            <p><span style="font-size: 10pt; font-family: Arial;">&nbsp;</span></p>
+          </td>
+
+          <td width="175" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; background: rgb(255, 255, 153) none repeat scroll 0% 50%; -moz-background-clip: initial; -moz-background-origin: initial; -moz-background-inline-policy: initial; width: 131.25pt; height: 12.75pt;">
+            <p><span style="font-size: 8pt; font-family: Arial;">&nbsp;</span></p>
+          </td>
+
+          <td width="149" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; background: rgb(204, 255, 204) none repeat scroll 0% 50%; -moz-background-clip: initial; -moz-background-origin: initial; -moz-background-inline-policy: initial; width: 111.75pt; height: 12.75pt;">
+            <p><span style="font-size: 8pt; font-family: Arial;">&nbsp;</span></p>
+          </td>
+
+          <td width="144" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; background: rgb(255, 204, 153) none repeat scroll 0% 50%; -moz-background-clip: initial; -moz-background-origin: initial; -moz-background-inline-policy: initial; width: 1.5in; height: 12.75pt;">
+            <p><span style="font-size: 8pt; font-family: Arial;">&nbsp;</span></p>
+          </td>
+        </tr>
+
+        <tr style="page-break-inside: avoid; height: 12.75pt;">
+          <td width="170" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; width: 127.35pt; height: 12.75pt;">
+            <p><span style="font-size: 10pt; font-family: Arial;">&nbsp;</span></p>
+          </td>
+
+          <td width="251" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; width: 188.4pt; height: 12.75pt;">
+            <p><span style="font-size: 10pt; font-family: Arial;">&nbsp;</span></p>
+          </td>
+
+          <td width="175" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; background: rgb(255, 255, 153) none repeat scroll 0% 50%; -moz-background-clip: initial; -moz-background-origin: initial; -moz-background-inline-policy: initial; width: 131.25pt; height: 12.75pt;">
+            <p><span style="font-size: 8pt; font-family: Arial;">&nbsp;</span></p>
+          </td>
+
+          <td width="149" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; background: rgb(204, 255, 204) none repeat scroll 0% 50%; -moz-background-clip: initial; -moz-background-origin: initial; -moz-background-inline-policy: initial; width: 111.75pt; height: 12.75pt;">
+            <p><span style="font-size: 8pt; font-family: Arial;">&nbsp;</span></p>
+          </td>
+
+          <td width="144" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; background: rgb(255, 204, 153) none repeat scroll 0% 50%; -moz-background-clip: initial; -moz-background-origin: initial; -moz-background-inline-policy: initial; width: 1.5in; height: 12.75pt;">
+            <p><span style="font-size: 8pt; font-family: Arial;">&nbsp;</span></p>
+          </td>
+        </tr>
+
+        <tr style="page-break-inside: avoid; height: 12.75pt;">
+          <td width="170" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; width: 127.35pt; height: 12.75pt;">
+            <p><span style="font-size: 10pt; font-family: Arial;">&nbsp;</span></p>
+          </td>
+
+          <td width="251" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; width: 188.4pt; height: 12.75pt;">
+            <p><span style="font-size: 10pt; font-family: Arial;">&nbsp;</span></p>
+          </td>
+
+          <td width="175" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; background: rgb(255, 255, 153) none repeat scroll 0% 50%; -moz-background-clip: initial; -moz-background-origin: initial; -moz-background-inline-policy: initial; width: 131.25pt; height: 12.75pt;">
+            <p><span style="font-size: 8pt; font-family: Arial;">&nbsp;</span></p>
+          </td>
+
+          <td width="149" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; background: rgb(204, 255, 204) none repeat scroll 0% 50%; -moz-background-clip: initial; -moz-background-origin: initial; -moz-background-inline-policy: initial; width: 111.75pt; height: 12.75pt;">
+            <p><span style="font-size: 8pt; font-family: Arial;">&nbsp;</span></p>
+          </td>
+
+          <td width="144" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; background: rgb(255, 204, 153) none repeat scroll 0% 50%; -moz-background-clip: initial; -moz-background-origin: initial; -moz-background-inline-policy: initial; width: 1.5in; height: 12.75pt;">
+            <p><span style="font-size: 8pt; font-family: Arial;">&nbsp;</span></p>
+          </td>
+        </tr>
+
+        <tr style="page-break-inside: avoid; height: 12.75pt;">
+          <td width="170" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; width: 127.35pt; height: 12.75pt;">
+            <p><span style="font-size: 10pt; font-family: Arial;">&nbsp;</span></p>
+          </td>
+
+          <td width="251" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; width: 188.4pt; height: 12.75pt;">
+            <p><span style="font-size: 10pt; font-family: Arial;">&nbsp;</span></p>
+          </td>
+
+          <td width="175" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; background: rgb(255, 255, 153) none repeat scroll 0% 50%; -moz-background-clip: initial; -moz-background-origin: initial; -moz-background-inline-policy: initial; width: 131.25pt; height: 12.75pt;">
+            <p><span style="font-size: 8pt; font-family: Arial;">&nbsp;</span></p>
+          </td>
+
+          <td width="149" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; background: rgb(204, 255, 204) none repeat scroll 0% 50%; -moz-background-clip: initial; -moz-background-origin: initial; -moz-background-inline-policy: initial; width: 111.75pt; height: 12.75pt;">
+            <p><span style="font-size: 8pt; font-family: Arial;">&nbsp;</span></p>
+          </td>
+
+          <td width="144" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; background: rgb(255, 204, 153) none repeat scroll 0% 50%; -moz-background-clip: initial; -moz-background-origin: initial; -moz-background-inline-policy: initial; width: 1.5in; height: 12.75pt;">
+            <p><span style="font-size: 8pt; font-family: Arial;">&nbsp;</span></p>
+          </td>
+        </tr>
+
+        <tr style="page-break-inside: avoid; height: 12.75pt;">
+          <td width="170" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; width: 127.35pt; height: 12.75pt;">
+            <p><span style="font-size: 10pt; font-family: Arial;">&nbsp;</span></p>
+          </td>
+
+          <td width="251" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; width: 188.4pt; height: 12.75pt;">
+            <p><span style="font-size: 10pt; font-family: Arial;">&nbsp;</span></p>
+          </td>
+
+          <td width="175" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; width: 131.25pt; height: 12.75pt;">
+            <p><span style="font-size: 8pt; font-family: Arial;">&nbsp;</span></p>
+          </td>
+
+          <td width="149" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; width: 111.75pt; height: 12.75pt;">
+            <p><span style="font-size: 8pt; font-family: Arial;">&nbsp;</span></p>
+          </td>
+
+          <td width="144" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; width: 1.5in; height: 12.75pt;">
+            <p><span style="font-size: 8pt; font-family: Arial;">&nbsp;</span></p>
+          </td>
+        </tr>
+
+        <tr style="page-break-inside: avoid; height: 12.75pt;">
+          <td width="170" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; width: 127.35pt; height: 12.75pt;">
+            <p><span style="font-size: 10pt; font-family: Arial;">&nbsp;</span></p>
+          </td>
+
+          <td width="251" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; width: 188.4pt; height: 12.75pt;">
+            <p><span style="font-size: 10pt; font-family: Arial;">&nbsp;</span></p>
+          </td>
+
+          <td width="175" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; width: 131.25pt; height: 12.75pt;">
+            <p><span style="font-size: 8pt; font-family: Arial;">&nbsp;</span></p>
+          </td>
+
+          <td width="149" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; width: 111.75pt; height: 12.75pt;">
+            <p><span style="font-size: 8pt; font-family: Arial;">&nbsp;</span></p>
+          </td>
+
+          <td width="144" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; width: 1.5in; height: 12.75pt;">
+            <p><span style="font-size: 8pt; font-family: Arial;">&nbsp;</span></p>
+          </td>
+        </tr>
+
+        <tr style="page-break-inside: avoid; height: 15.75pt;">
+          <td width="170" nowrap="nowrap" valign="bottom" style="border-style: none none solid; border-color: -moz-use-text-color -moz-use-text-color windowtext; border-width: medium medium 1pt; padding: 0in 5.4pt; width: 127.35pt; height: 15.75pt;">
+            <p><span class="StyleArialBold1"><span style="font-size: 8pt;">Special Property Constraint</span></span></p>
+          </td>
+
+          <td width="251" nowrap="nowrap" valign="bottom" style="border-style: none none solid; border-color: -moz-use-text-color -moz-use-text-color windowtext; border-width: medium medium 1pt; padding: 0in 5.4pt; width: 188.4pt; height: 15.75pt;">
+            <p><span class="StyleArialBold1"><span style="font-size: 8pt;">&nbsp;</span></span></p>
+          </td>
+
+          <td width="175" nowrap="nowrap" valign="bottom" style="border-style: none none solid; border-color: -moz-use-text-color -moz-use-text-color windowtext; border-width: medium medium 1pt; padding: 0in 5.4pt; width: 131.25pt; height: 15.75pt;">
+            <p><span class="StyleArialBold1"><span style="font-size: 8pt;">&nbsp;</span></span></p>
+          </td>
+
+          <td width="149" nowrap="nowrap" valign="bottom" style="border-style: none none solid; border-color: -moz-use-text-color -moz-use-text-color windowtext; border-width: medium medium 1pt; padding: 0in 5.4pt; width: 111.75pt; height: 15.75pt;">
+            <p><span class="StyleArialBold1"><span style="font-size: 8pt;">&nbsp;</span></span></p>
+          </td>
+
+          <td width="144" nowrap="nowrap" valign="bottom" style="border-style: none none solid; border-color: -moz-use-text-color -moz-use-text-color windowtext; border-width: medium medium 1pt; padding: 0in 5.4pt; width: 1.5in; height: 15.75pt;">
+            <p><span class="StyleArialBold1"><span style="font-size: 8pt;">&nbsp;</span></span></p>
+          </td>
+        </tr>
+
+        <tr style="page-break-inside: avoid; height: 12.75pt;">
+          <td width="170" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; width: 127.35pt; height: 12.75pt;">
+            <p><span class="StyleArial10pt"><span style="font-size: 8pt;">PropertyIs(string propertyName, object expected)</span></span></p>
+          </td>
+
+          <td width="251" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; width: 188.4pt; height: 12.75pt;">
+            <p><span class="StyleArial10pt"><span style="font-size: 8pt;">Tests the value of the property of a value instead</span></span></p>
+          </td>
+
+          <td width="175" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; width: 131.25pt; height: 12.75pt;">
+            <p><span style="font-size: 10pt; font-family: Arial;">&nbsp;</span></p>
+          </td>
+
+          <td width="149" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; width: 111.75pt; height: 12.75pt;">
+            <p><span style="font-size: 10pt; font-family: Arial;">&nbsp;</span></p>
+          </td>
+
+          <td width="144" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; width: 1.5in; height: 12.75pt;">
+            <p><span style="font-size: 10pt; font-family: Arial;">&nbsp;</span></p>
+          </td>
+        </tr>
+
+        <tr style="page-break-inside: avoid; height: 12.75pt;">
+          <td width="170" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; width: 127.35pt; height: 12.75pt;">
+            <p><span style="font-size: 10pt; font-family: Arial;">&nbsp;</span></p>
+          </td>
+
+          <td width="251" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; width: 188.4pt; height: 12.75pt;">
+            <p><span style="font-size: 10pt; font-family: Arial;">&nbsp;</span></p>
+          </td>
+
+          <td width="175" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; width: 131.25pt; height: 12.75pt;">
+            <p><span style="font-size: 10pt; font-family: Arial;">&nbsp;</span></p>
+          </td>
+
+          <td width="149" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; width: 111.75pt; height: 12.75pt;">
+            <p><span style="font-size: 10pt; font-family: Arial;">&nbsp;</span></p>
+          </td>
+
+          <td width="144" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; width: 1.5in; height: 12.75pt;">
+            <p><span style="font-size: 10pt; font-family: Arial;">&nbsp;</span></p>
+          </td>
+        </tr>
+
+        <tr style="page-break-inside: avoid; height: 12.75pt;">
+          <td width="170" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; width: 127.35pt; height: 12.75pt;">
+            <p><span style="font-size: 10pt; font-family: Arial;">&nbsp;</span></p>
+          </td>
+
+          <td width="251" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; width: 188.4pt; height: 12.75pt;">
+            <p><u><span style="font-size: 10pt; font-family: Arial;">Example</span></u></p>
+          </td>
+
+          <td width="175" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; width: 131.25pt; height: 12.75pt;">
+            <p><span style="font-size: 10pt; font-family: Arial;">&nbsp;</span></p>
+          </td>
+
+          <td width="149" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; width: 111.75pt; height: 12.75pt;">
+            <p><span style="font-size: 10pt; font-family: Arial;">&nbsp;</span></p>
+          </td>
+
+          <td width="144" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; width: 1.5in; height: 12.75pt;">
+            <p><span style="font-size: 10pt; font-family: Arial;">&nbsp;</span></p>
+          </td>
+        </tr>
+
+        <tr style="page-break-inside: avoid; height: 12.75pt;">
+          <td width="170" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; width: 127.35pt; height: 12.75pt;">
+            <p><span style="font-size: 10pt; font-family: Arial;">&nbsp;</span></p>
+          </td>
+
+          <td width="251" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; width: 188.4pt; height: 12.75pt;">
+            <p><span class="StyleArial10pt"><span style="font-size: 8pt;">new PropertyIs("Customer.Address.Street", new IsEqual("</span></span><span class="StyleArial10pt"><span style="font-size: 8pt;">Elm Street</span></span><span class="StyleArial10pt"><span style="font-size: 8pt;">"))</span></span></p>
+          </td>
+
+          <td width="175" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; width: 131.25pt; height: 12.75pt;">
+            <p><span style="font-size: 10pt; font-family: Arial;">&nbsp;</span></p>
+          </td>
+
+          <td width="149" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; width: 111.75pt; height: 12.75pt;">
+            <p><span style="font-size: 10pt; font-family: Arial;">&nbsp;</span></p>
+          </td>
+
+          <td width="144" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; width: 1.5in; height: 12.75pt;">
+            <p><span style="font-size: 10pt; font-family: Arial;">&nbsp;</span></p>
+          </td>
+        </tr>
+
+        <tr style="page-break-inside: avoid; height: 12.75pt;">
+          <td width="170" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; width: 127.35pt; height: 12.75pt;">
+            <p><span style="font-size: 10pt; font-family: Arial;">&nbsp;</span></p>
+          </td>
+
+          <td width="251" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; width: 188.4pt; height: 12.75pt;">
+            <p><span class="StyleArial10pt"><span style="font-size: 8pt;">This will pass if</span></span> <span class="StyleArial10ptBold"><span style="font-size: 8pt;">actual.Customer.Address.Street == "</span></span><span class="StyleArial10ptBold"><span style="font-size: 8pt;">Elm Street</span></span><span class="StyleArial10ptBold"><span style="font-size: 8pt;">"</span></span></p>
+          </td>
+
+          <td width="175" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; width: 131.25pt; height: 12.75pt;">
+            <p><span style="font-size: 10pt; font-family: Arial;">&nbsp;</span></p>
+          </td>
+
+          <td width="149" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; width: 111.75pt; height: 12.75pt;">
+            <p><span style="font-size: 10pt; font-family: Arial;">&nbsp;</span></p>
+          </td>
+
+          <td width="144" nowrap="nowrap" valign="bottom" style="padding: 0in 5.4pt; width: 1.5in; height: 12.75pt;">
+            <p><span style="font-size: 10pt; font-family: Arial;">&nbsp;</span></p>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p>The power of constraints is that you can flexibly specify your expectations <i>before</i> your code under test runs, allowing fail fast.</p>
+
+    <p>You can easily create custom constraints by implementing the IConstraint interface, or passing a delegate into the Constraint class.</p>
+
+    <h2>Tips</h2>
+
+    <p><span style="font-weight: bold;">Syntactic sugar</span>: Because 90% of the time, the two constraints you use are IsEqual() and IsAnything(), these can be replaced with object and null arguments respectively. The above example can be shortened to mock.Expect("Eat", "cheese", null, null).</p>
+
+    <p><span style="font-weight: bold;">Test layout</span>: Tests that use mocks are easier to read if they follow a standard layout. We break the test into four parts: "Setup" initializes any objects/mocks and puts them into the correct state before a test. "Expectations" specifies what you expect to happen - this is the actual 'test' bit. "Execute" runs the code under test - this is where you'd typically get a failure. "Verify" performs any post-execution checks including verifying all the mocks expectations have been met and any additional assertions.</p>
+
+    <p><span style="font-weight: bold;">Externalize dependencies</span>: Inversion of Control (AKA Dependency Inversion Principle, Dependency Injector Pattern). Passing dependencies in from the outside decouples class under test from a particular implementation of the dependency (a good practice in general), making it easier to mock.</p>
+
+    <p><span style="font-weight: bold;">Return values</span>: If the method being mocked returns a value or throws an exception, you can use ExpectAndReturn() or ExpectAndThrow() to specify what the mock should return. You can also use SetupResult() which does not associate an expectation and doesn't care how many times the method is called.</p>
+
+    <p><span style="font-weight: bold;">Mocking classes</span>: NMock supports mocking of classes with virtual methods as well as interfaces. The merits of when to mock classes and interfaces is a religious debate. However, use of interfaces is highly recommended.</p>
+
+    <p><span style="font-weight: bold;">Don't mock things you don't own</span>: It's awkward and painful trying to mock someone else's API (such as ADO.NET), leading to hard to read tests and assumptions about how the API works. On the other hand, mocking your own APIs leads you down the path of creating cleaner interfaces, which can never hurt. If dealing with external APIs, create your own clean abstraction suited for your purposes, which you can mock easily. For testing the abstraction itself, don't use mocks, use the real thing. This is the opposite of the usage commonly associated with using mocks, which usually leads to brittle and cumbersome tests.</p>
+
+    <p><span style="font-weight: bold;">PropertyConstraint</span>: Allows you to setup constraints on properties of objects.</p>
+
+<div id="footer">
+$Id: nmock1-documentation.html,v 1.1 2006/02/14 22:50:52 mgm Exp $
+</div>
+
+</body>
+</html>

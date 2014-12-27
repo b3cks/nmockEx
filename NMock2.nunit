@@ -1,0 +1,11 @@
+<NUnitProject>
+  <Settings activeconfig="Debug" />
+  <Config name="Debug" binpathtype="Auto">
+    <assembly path="build\NMock2.Test\Debug\NMock2.Test.dll" />
+    <assembly path="build\NMock2.AcceptanceTests\Debug\NMock2.AcceptanceTests.dll" />
+  </Config>
+  <Config name="Release" binpathtype="Auto">
+    <assembly path="build\NMock2.Test\Release\NMock2.Test.dll" />
+    <assembly path="build\NMock2.AcceptanceTests\Release\NMock2.AcceptanceTests.dll" />
+  </Config>
+</NUnitProject>

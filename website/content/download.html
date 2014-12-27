@@ -1,0 +1,145 @@
+<?xml version="1.0"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN"
+      "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html>
+<body>
+
+<h3> Latest Stable Release </h3>
+
+<p> NMock 2.0 is the latest release and has been rewritten to support a <a href="http://jmock.codehaus.org/">jMock</a> style of expectation definition and verification. If you're using the .NET 2.0 framework, NMock2 supports use of generics in a few places to make life easier. </p>
+
+<table class="downloads" summary="NMock Stable Downloads">
+	<tr>
+		<th colspan="2">
+			<p> NMock 2.0 Release Candidate 2 (Recommended) </p>
+		</th>
+	</tr>
+	<tr>
+		<td> <p> .NET Framework 1.1 </p> </td> <td>	<a href="http://downloads.sourceforge.net/nmock/nmock2-2.0.0.44-net-1.1.zip?download">nmock2-2.0.0.44-net-1.1.zip</a> </td>
+	</tr>
+	<tr>
+		<td> <p> .NET Framework 2.0 </p> </td> <td>	<a href="http://downloads.sourceforge.net/nmock/nmock2-2.0.0.44-net-2.0.zip?download">nmock2-2.0.0.44-net-2.0.zip</a> </td>
+	</tr>
+</table>
+
+<h3> Older Releases </h3>
+<table class="downloads" summary="NMock Older Releases">
+	<tr>
+		<th colspan="2">
+			<p> NMock 2.0 Release Candidate 1</p>
+		</th>
+	</tr>
+	<tr>
+		<td> <p> .NET Framework 1.1 </p> </td> <td>	<a href="http://downloads.sourceforge.net/nmock/nmock-2.0.0.RC1-net-1.1.zip?download">nmock-2.0.0.RC1-net-1.1.zip</a> </td>
+	</tr>
+	<tr>
+		<td> <p> .NET Framework 2.0 </p> </td> <td>	<a href="http://downloads.sourceforge.net/nmock/nmock-2.0.0.RC1-net-2.0.zip?download">nmock-2.0.0.RC1-net-2.0.zip</a> </td>
+	</tr>
+</table>
+
+<p> NMock 1.x is no longer being actively maintained, but if you have a question you should still be able to get answers on the mailing list. Head over to the <a href="support.html">support</a> page if you have a problem. </p>
+
+<table class="downloads" summary="NMock Older Releases">
+	<tr>
+		<th colspan="2">
+			<p> NMock 1.1 </p>
+		</th>
+	</tr>
+	<tr>
+		<td> <p> Binary </p> </td> <td>	<a href="http://prdownloads.sourceforge.net/nmock/nmock.dll?download">nmock.dll</a> </td>
+	</tr>
+	<tr>
+		<td> <p> Source Code </p> </td> <td> <a href="http://prdownloads.sourceforge.net/nmock/nmock.source.zip?download">nmock.source.zip</a> </td>
+	</tr>
+</table>
+
+<h3> Live Builds </h3>
+
+<p> We continuously build NMock using <a href="http://confluence.public.thoughtworks.org/display/CCNET/Welcome+to+CruiseControl.NET">CruiseControl.NET</a>. To see the current build status, check out the <a href="http://ccnetlive.thoughtworks.com/ccnet/default.aspx?_action_ViewProjectReport=true&server=local&project=NMock2">CCNet Live</a> build page. To download a recent build, try the <a href="http://ccnetlive.thoughtworks.com/NMock2%2Dbuilds/">builds directory</a>, but bear in mind that these are &#0147;bleeding edge&#0148; builds and not official releases. </p>
+
+
+<h3>Version Numbering</h3>
+
+<p>The NMock project follows strict rules that govern its use of version
+numbers.  The version number of a release indicates how that release is
+compatible with previous and future releases.</p>
+
+<p>Version numbers have the form <var>major</var>.<var>minor</var>.<var>patch</var>. The major version number
+identifies the API version.  A release that changes the API in a way that
+breaks backwards compatibility will increment the major version number.
+The minor version number
+identifies the backwards compatible revision of the API.  An API version that
+adds new elements to the API will have the same major version but will increment the
+minor version.  The patch version number
+identifies revisions that do not change the API.  A release that fixes bugs
+or refactors implementation details without changing the API will have the
+same minor and major versions as the previous release and increment the patch
+number.</p>
+
+<p>A hypothetical example:</p>
+
+<table class="versions">
+  <tbody>
+    <tr>
+      <td>1.0.0</td>
+      <td>First release</td>
+
+    </tr>
+    <tr>
+      <td>1.0.1</td>
+      <td>Improves documentation</td>
+    </tr>
+    <tr>
+      <td>1.1.0</td>
+
+      <td>Adds new API elements</td>
+    </tr>
+    <tr>
+      <td>1.2.0</td>
+      <td>Adds new API elements, deprecates some API elements</td>
+    </tr>
+    <tr>
+
+      <td>1.2.1</td>
+      <td>Fixes bugs</td>
+    </tr>
+    <tr>
+      <td>2.0.0</td>
+      <td>Incompatible API changes, removes API elements deprecated by
+        version 1.2.0.</td>
+    </tr>
+
+    <tr>
+      <td>2.1.0</td>
+      <td>Adds new API elements</td>
+    </tr>
+    <tr>
+      <td>etc.</td>
+      <td>etc.</td>
+
+    </tr>
+  </tbody>
+</table>
+
+<h3>Release Candidates</h3>
+
+<p>Before a new major or minor release, NMock will make release candidate
+(RC) packages available so that users can test them against their own code.
+There will be one or more release candidates given the version
+<var>major</var>.<var>minor</var>.0.RC<var>n</var>, where the major and minor
+version numbers identify the upcoming release and RC1 identifies the first
+candidate release, RC2 the second, and so on.</p>
+
+<p>A release candidate does not guarantee backward compatability with new API
+features introduced by any previous RC of the same upcoming version. A major
+version RC can change/remove API features introduced in a previous RC for the
+same major version;  a minor version RC can change API features introduced by
+any previous RC of the same upcoming minor version but guarantees backward
+compatability with the previous minor version.</p>
+
+<div id="footer">
+$Id: download.html,v 1.6 2008/03/17 22:38:56 aciddeath Exp $
+</div>
+
+</body>
+</html>

@@ -1,0 +1,10 @@
+D:\Dropbox\Summer research 2014\nmock2\build\NMock2.AcceptanceTests\Debug\NMock2.AcceptanceTests.exe
+D:\Dropbox\Summer research 2014\nmock2\build\NMock2.AcceptanceTests\Debug\NMock2.AcceptanceTests.pdb
+D:\Dropbox\Summer research 2014\nmock2\src\NMock2.AcceptanceTests\obj\Debug\NMock2.AcceptanceTests.csprojResolveAssemblyReference.cache
+D:\Dropbox\Summer research 2014\nmock2\src\NMock2.AcceptanceTests\obj\Debug\NMock2.AcceptanceTests.exe
+D:\Dropbox\Summer research 2014\nmock2\src\NMock2.AcceptanceTests\obj\Debug\NMock2.AcceptanceTests.pdb
+E:\Dropbox\Summer research 2014\nmock2\src\NMock2.AcceptanceTests\obj\Debug\NMock2.AcceptanceTests.exe
+E:\Dropbox\Summer research 2014\nmock2\src\NMock2.AcceptanceTests\obj\Debug\NMock2.AcceptanceTests.pdb
+E:\Dropbox\Summer research 2014\nmock2\build\NMock2.AcceptanceTests\Debug\NMock2.AcceptanceTests.exe
+E:\Dropbox\Summer research 2014\nmock2\build\NMock2.AcceptanceTests\Debug\NMock2.AcceptanceTests.pdb
+E:\Dropbox\Summer research 2014\nmock2\src\NMock2.AcceptanceTests\obj\Debug\NMock2.AcceptanceTests.csprojResolveAssemblyReference.cache
